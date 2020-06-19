@@ -10,7 +10,7 @@ A Python implementation of random feature latent variable models (RFLVMs). See [
 
 To replicate results, call `fit_model.py` with appropriate arguments. The datasets `bridges`, `congress`, and `s-curve` are supported here. For example, to replicate the Gaussian model, call
 
-```python
+```bash
 python fit_model.py --dataset=s-curve --emissions=gaussian --model=gaussian
 ```
 
@@ -20,7 +20,7 @@ See the `ArgumentParser` instance in `fit_model.py` for a description of argumen
 
 This implementation requires Python 3.X. See `requirements.txt` for a list installed packages and their versions. The main packages are:
 
-```python
+```bash
 autograd
 GPy
 matplotlib
