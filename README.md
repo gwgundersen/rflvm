@@ -1,6 +1,6 @@
 # Latent Variable Modeling with Random Features
 
-A Python implementation of random feature latent variable models (RFLVMs). See [Latent Variable Modeling with Random Features]() for details.
+A Python implementation of random feature latent variable models (RFLVMs). See [Latent Variable Modeling with Random Features](https://arxiv.org/abs/2006.11145) for details.
 
 ### Abstract
 
