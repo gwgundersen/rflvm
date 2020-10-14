@@ -6,7 +6,8 @@ from   datasets.dataset import Dataset
 from   GPy import kern
 import numpy as np
 import pandas as pd
-from   scipy.special import expit as logistic
+from   scipy.special import (expit as logistic,
+                             logsumexp)
 from   sklearn.datasets import make_s_curve
 
 
@@ -90,8 +91,19 @@ def gen_s_curve(rng, emissions):
 
     # Generate emissions using `F` and/or `K`.
     # ----------------------------------------
+    if emissions == 'bernoulli':
+        P = logistic(F)
+        Y = rng.binomial(1, P).astype(np.double)
+        return Dataset('s-curve', False, Y, X, F, K, None, t)
     if emissions == 'gaussian':
         Y = F + np.random.normal(0, scale=0.5, size=F.shape)
+        return Dataset('s-curve', False, Y, X, F, K, None, t)
+    elif emissions == 'multinomial':
+        C = 100
+        pi = np.exp(F - logsumexp(F, axis=1)[:, None])
+        Y = np.zeros(pi.shape)
+        for n in range(N):
+            Y[n] = rng.multinomial(C, pi[n])
         return Dataset('s-curve', False, Y, X, F, K, None, t)
     elif emissions == 'negbinom':
         P = logistic(F)

@@ -60,7 +60,7 @@ class _BaseLogisticRFLVM(_BaseRFLVM):
         # Linear coefficients `beta`.
         b0 = np.zeros(self.M+1)
         B0 = np.eye(self.M+1)
-        self.beta = self.rng.multivariate_normal(b0, B0, size=self.J)
+        self.beta = self.rng.multivariate_normal(b0, B0, size=self._j_func())
 
 # -----------------------------------------------------------------------------
 # Public API.
@@ -129,6 +129,13 @@ class _BaseLogisticRFLVM(_BaseRFLVM):
         """This function returns `log c(y)`. This is the normalizer in logistic
         models and is only used in the log likelihood calculation. See the
         comment at the top of this file and (Polson 2013).
+        """
+        raise NotImplementedError()
+
+    def _j_func(self):
+        """Return number of features to iterate over. This is required because
+        multinomial models decompose the multinomial distribution into `J-1`
+        binomial distributions.
         """
         raise NotImplementedError()
 

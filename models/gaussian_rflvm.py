@@ -3,12 +3,12 @@ RFLVM with Gaussian observations.
 ============================================================================"""
 
 from   autograd import jacobian
-from   scipy.optimize import minimize
 import autograd.numpy as np
 from   autograd.scipy.special import gammaln
 from   autograd.scipy.stats import (norm as ag_norm,
                                     multivariate_normal as ag_mvn)
 from   models._base_rflvm import _BaseRFLVM
+from   scipy.optimize import minimize
 
 
 # -----------------------------------------------------------------------------

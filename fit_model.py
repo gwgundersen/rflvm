@@ -6,7 +6,9 @@ import argparse
 from   datasets import load_dataset
 from   logger import (format_number,
                       Logger)
-from   models import (GaussianRFLVM,
+from   models import (BernoulliRFLVM,
+                      GaussianRFLVM,
+                      MultinomialRFLVM,
                       NegativeBinomialRFLVM,
                       PoissonRFLVM)
 from   metrics import (knn_classify,
@@ -40,14 +42,26 @@ def fit_log_plot(args):
     args.dp_prior_obs = ds.latent_dim
     args.dp_df        = ds.latent_dim + 1
     args.marginalize  = bool(args.marginalize)
-    args.log_every    = 10
+    args.log_every    = 50
 
     log.log_hline()
     log.log_args(args)
 
     # Initialize model.
     # -----------------
-    if args.model == 'gaussian':
+    if args.model == 'bernoulli':
+        model = BernoulliRFLVM(
+            rng=rng,
+            data=ds.Y,
+            n_burn=args.n_burn,
+            n_iters=args.n_iters,
+            latent_dim=ds.latent_dim,
+            n_clusters=args.n_clusters,
+            n_rffs=args.n_rffs,
+            dp_prior_obs=args.dp_prior_obs,
+            dp_df=args.dp_df
+        )
+    elif args.model == 'gaussian':
         model = GaussianRFLVM(
             rng=rng,
             data=ds.Y,
@@ -62,6 +76,18 @@ def fit_log_plot(args):
         )
     elif args.model == 'poisson':
         model = PoissonRFLVM(
+            rng=rng,
+            data=ds.Y,
+            n_burn=args.n_burn,
+            n_iters=args.n_iters,
+            latent_dim=ds.latent_dim,
+            n_clusters=args.n_clusters,
+            n_rffs=args.n_rffs,
+            dp_prior_obs=args.dp_prior_obs,
+            dp_df=args.dp_df
+        )
+    elif args.model == 'multinomial':
+        model = MultinomialRFLVM(
             rng=rng,
             data=ds.Y,
             n_burn=args.n_burn,
@@ -91,8 +117,8 @@ def fit_log_plot(args):
     if args.model != args.emissions and args.dataset == 's-curve':
         model_name = model.__class__.__name__
         log.log_hline()
-        log.log(f'Model is {model_name}, but emissions are {args.emissions}. '
-                f'Was this intended?')
+        log.log(f'WARNING: Model is {model_name}, but emissions '
+                f'are {args.emissions}. Was this intended?')
 
     # Visualize the initial value of `X`.
     viz.plot_X_init(model.X)
@@ -181,6 +207,8 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
+    EMISSIONS = ['bernoulli', 'gaussian', 'multinomial', 'negbinom', 'poisson']
+
     p = argparse.ArgumentParser()
     p.add_argument('--directory',
                    help='Experimental directory.',
@@ -190,7 +218,7 @@ if __name__ == '__main__':
                    help='Model to fit.',
                    required=False,
                    default='gaussian',
-                   choices=['gaussian', 'negbinom', 'poisson'])
+                   choices=EMISSIONS)
     p.add_argument('--seed',
                    help='Random seed.',
                    required=False,
@@ -206,7 +234,7 @@ if __name__ == '__main__':
                    required=False,
                    type=str,
                    default='gaussian',
-                   choices=['gaussian', 'negbinom', 'poisson'])
+                   choices=EMISSIONS)
     p.add_argument('--n_iters',
                    help='Number of iterations for the Gibbs sampler.',
                    required=False,
