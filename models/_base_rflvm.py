@@ -49,7 +49,9 @@ class _BaseRFLVM:
         self.n_iters   = n_iters
         self.n_samples = self.n_iters - self.n_burn
         self.mh_accept = 0  # Number of MH accepts of `W`.
-        self.max_iters = 1000  # Default used by GPy.
+        # Default used by GPy is 1000; however, we run this optimization in
+        # every Gibbs sampling step.
+        self.max_iters = 10
 
         # Latent variable `X`.
         # --------------------
