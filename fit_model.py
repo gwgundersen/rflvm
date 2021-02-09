@@ -17,6 +17,7 @@ from   metrics import (knn_classify,
 import numpy as np
 from   numpy.random import RandomState
 from   pathlib import Path
+import pickle
 from   time import perf_counter
 from   visualizer import Visualizer
 
@@ -42,7 +43,7 @@ def fit_log_plot(args):
     args.dp_prior_obs = ds.latent_dim
     args.dp_df        = ds.latent_dim + 1
     args.marginalize  = bool(args.marginalize)
-    args.log_every    = 50
+    args.log_every    = 10
 
     log.log_hline()
     log.log_args(args)
@@ -200,8 +201,8 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # Flush and save state.
     # ---------------------
     params = model.get_params()
-    fpath = f'{args.directory}/{args.model}_rflvm.npy'
-    np.save(fpath, params)
+    fpath = f'{args.directory}/{args.model}_rflvm.pickle'
+    pickle.dump(params, open(fpath, 'wb'))
 
 
 # -----------------------------------------------------------------------------
