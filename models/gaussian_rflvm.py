@@ -2,15 +2,12 @@
 RFLVM with Gaussian observations.
 ============================================================================"""
 
-from   autograd import jacobian
 import autograd.numpy as np
 from   autograd.scipy.special import gammaln
-from   autograd.scipy.stats import (norm as ag_norm,
-                                    multivariate_normal as ag_mvn)
+from   autograd.scipy.stats import norm as ag_norm
 from   models._base_rflvm import _BaseRFLVM
 from   scipy.linalg import solve_triangular
 from   scipy.linalg.lapack import dpotrs
-from   scipy.optimize import minimize
 
 
 # -----------------------------------------------------------------------------
@@ -72,10 +69,10 @@ class GaussianRFLVM(_BaseRFLVM):
             phi_X = self.phi(X, W, add_bias=True)
             F = phi_X @ beta.T
             # Explicitly shape before flattening to ensure elements align.
-            C = np.repeat(self.sigma_y[None, :], self.N, axis=0)
+            C = np.sqrt(np.repeat(self.sigma_y[None, :], self.N, axis=0))
             LL = ag_norm.logpdf(self.Y.flatten(),
                                 F.flatten(),
-                                np.sqrt(C.flatten())).sum()
+                                C.flatten()).sum()
             return LL
 
     def log_marginal_likelihood(self, X, W):
@@ -124,25 +121,6 @@ class GaussianRFLVM(_BaseRFLVM):
             pass
         else:
             self._sample_beta_and_sigma_y()
-
-    def _sample_beta(self):
-        """Compute the maximum a posteriori estimation of `beta`.
-        """
-        def _neg_log_posterior(beta_flat):
-            beta = beta_flat.reshape(self.J, self.M + 1)
-            LL = self.log_likelihood(beta=beta)
-            LP = ag_mvn.logpdf(beta, self.gamma_b0, self.B0).sum()
-            return -(LL + LP)
-
-        resp = minimize(_neg_log_posterior,
-                        x0=np.copy(self.beta),
-                        jac=jacobian(_neg_log_posterior),
-                        method='L-BFGS-B',
-                        options=dict(
-                            maxiter=self.max_iters
-                        ))
-        beta_map = resp.x.reshape(self.J, self.M + 1)
-        self.beta = beta_map
 
     def _sample_beta_and_sigma_y(self):
         """Gibbs sample `beta` and noise parameter `sigma_y`.
