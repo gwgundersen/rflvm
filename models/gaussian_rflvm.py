@@ -145,7 +145,7 @@ class GaussianRFLVM(_BaseRFLVM):
         self.beta = beta_map
 
     def _sample_beta_and_sigma_y(self):
-        """Gibbs sample `beta` and noise parameter `sigma_Y`.
+        """Gibbs sample `beta` and noise parameter `sigma_y`.
         """
         phi_X = self.phi(self.X, self.W, add_bias=True)
         cov_j = self.B0 + phi_X.T @ phi_X
