@@ -8,6 +8,8 @@ from   autograd.scipy.special import gammaln
 from   autograd.scipy.stats import (norm as ag_norm,
                                     multivariate_normal as ag_mvn)
 from   models._base_rflvm import _BaseRFLVM
+from   scipy.linalg import solve_triangular
+from   scipy.linalg.lapack import dpotrs
 from   scipy.optimize import minimize
 
 
@@ -69,7 +71,11 @@ class GaussianRFLVM(_BaseRFLVM):
             beta = kwargs.get('beta', self.beta)
             phi_X = self.phi(X, W, add_bias=True)
             F = phi_X @ beta.T
-            LL = ag_norm.logpdf(self.Y.flatten(), F.flatten(), 1).sum()
+            # Explicitly shape before flattening to ensure elements align.
+            C = np.repeat(self.sigma_y[None, :], self.N, axis=0)
+            LL = ag_norm.logpdf(self.Y.flatten(),
+                                F.flatten(),
+                                C.flatten()).sum()
             return LL
 
     def log_marginal_likelihood(self, X, W):
@@ -79,20 +85,20 @@ class GaussianRFLVM(_BaseRFLVM):
         phi_X = self.phi(X, W)
         S_n   = phi_X.T @ phi_X + np.eye(self.M)
         mu_n  = np.linalg.inv(S_n) @ phi_X.T @ self.Y
-        a_n   = self.a0 + self.N / 2
+        a_n   = self.gamma_a0 + self.N / 2
         A     = np.diag(self.Y.T @ self.Y)
         C     = np.diag(mu_n.T @ S_n @ mu_n)
-        b_n   = self.b0 + 0.5 * (A - C)
+        b_n   = self.gamma_b0 + 0.5 * (A - C)
 
         # Compute Lambda term.
         sign, logdet = np.linalg.slogdet(S_n)
         lambda_term  = -0.5 * sign * logdet
 
         # Compute b_n term.
-        b_term = self.a0 * np.log(self.b0) - a_n * np.log(b_n)
+        b_term = self.gamma_a0 * np.log(self.gamma_b0) - a_n * np.log(b_n)
 
         # Compute a_n term.
-        gamma_term = gammaln(a_n) - gammaln(self.a0)
+        gamma_term = gammaln(a_n) - gammaln(self.gamma_a0)
 
         # Compute sum over all y_n.
         return np.sum(gamma_term + b_term + lambda_term)
@@ -117,7 +123,7 @@ class GaussianRFLVM(_BaseRFLVM):
             # We integrated out `beta` a la Bayesian linear regression.
             pass
         else:
-            self._sample_beta()
+            self._sample_beta_and_sigma_y()
 
     def _sample_beta(self):
         """Compute the maximum a posteriori estimation of `beta`.
@@ -125,7 +131,7 @@ class GaussianRFLVM(_BaseRFLVM):
         def _neg_log_posterior(beta_flat):
             beta = beta_flat.reshape(self.J, self.M + 1)
             LL = self.log_likelihood(beta=beta)
-            LP = ag_mvn.logpdf(beta, self.b0, self.B0).sum()
+            LP = ag_mvn.logpdf(beta, self.gamma_b0, self.B0).sum()
             return -(LL + LP)
 
         resp = minimize(_neg_log_posterior,
@@ -137,6 +143,28 @@ class GaussianRFLVM(_BaseRFLVM):
                         ))
         beta_map = resp.x.reshape(self.J, self.M + 1)
         self.beta = beta_map
+
+    def _sample_beta_and_sigma_y(self):
+        """Gibbs sample `beta` and noise parameter `sigma_Y`.
+        """
+        phi_X = self.phi(self.X, self.W, add_bias=True)
+        cov_j = self.B0 + phi_X.T @ phi_X
+        mu_j  = np.tile((self.B0 @ self.b0), (self.J, 1)).T + \
+                (phi_X.T @ self.Y)
+        # multi-output generalization of mvn sample code
+        L  = np.linalg.cholesky(cov_j)
+        Z  = self.rng.normal(size=self.beta.shape).T
+        LZ = solve_triangular(L, Z, lower=True, trans='T')
+        L_mu = dpotrs(L, mu_j, lower=True)[0]
+        self.beta[:] = (LZ + L_mu).T
+        # sample from inverse gamma
+        a_post = self.gamma_a0 + .5 * self.N
+        b_post = self.gamma_b0 + .5 * np.diag(
+            (self.Y.T @ self.Y) + \
+            (self.b0 @ self.B0 @ self.b0.T) + \
+            (mu_j.T @ np.linalg.solve(cov_j, mu_j))
+        )
+        self.sigma_y = 1. / self.rng.gamma(a_post, 1./b_post)
 
     def _evaluate_proposal(self, W_prop):
         """Evaluate Metropolis-Hastings proposal `W` using the log evidence.
@@ -163,14 +191,14 @@ class GaussianRFLVM(_BaseRFLVM):
     def _init_specific_params(self):
         """Initialize likelihood-specific parameters.
         """
-        if self.marginalize:
-            # Equivalent to the inverse-gamma hyperparameters in Bayesian
-            # linear regression.
-            self.a0 = 1
-            self.b0 = 1
-        else:
+        # Equivalent to the inverse-gamma hyperparameters in Bayesian
+        # linear regression.
+        self.gamma_a0 = 1
+        self.gamma_b0 = 1
+        if not self.marginalize:
             # Linear coefficients β in `Poisson(exp(phi(X)*β))`.
-            self.b0 = np.zeros(self.M + 1)
-            self.B0 = np.eye(self.M + 1)
+            self.b0   = np.zeros(self.M + 1)
+            self.B0   = np.eye(self.M + 1)
             self.beta = self.rng.multivariate_normal(self.b0, self.B0,
                                                      size=self.J)
+            self.sigma_y = np.ones(self.J)
