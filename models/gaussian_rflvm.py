@@ -75,7 +75,7 @@ class GaussianRFLVM(_BaseRFLVM):
             C = np.repeat(self.sigma_y[None, :], self.N, axis=0)
             LL = ag_norm.logpdf(self.Y.flatten(),
                                 F.flatten(),
-                                C.flatten()).sum()
+                                np.sqrt(C.flatten())).sum()
             return LL
 
     def log_marginal_likelihood(self, X, W):
