@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+
+  jupyter:
+
+    build: 
+      context: .
+      dockerfile: Dockerfile
+
+    environment:
+      RESTARTABLE: 'yes'
+      # Jupyter server without a frontend: https://jupyter-docker-stacks.readthedocs.io/en/latest/using/common.html#switching-back-to-the-classic-notebook-or-using-a-different-startup-command
+      # can also remove the port?
+      # DOCKER_STACKS_JUPYTER_CMD: 'server'
+
+    volumes:
+      - ..:/home/jovyan/work:cached

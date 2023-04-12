@@ -1,0 +1,30 @@
+{
+	"name": "Jupyter",
+
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "jupyter",
+	
+	"forwardPorts": [8888],
+	"portsAttributes": {
+		"8888": {
+			"label": "Jupyter"
+		}
+	},
+
+	"workspaceFolder": "/home/jovyan/work",
+	"remoteUser": "jovyan",
+
+	"customizations": {
+
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": "/opt/conda/bin/python"
+			},
+			"extensions": [
+				"ms-python.python",							// for Python
+				"ms-toolsai.jupyter",						// for Python
+				"ms-toolsai.jupyter-keymap" 				// for Python
+			]
+		}
+	}
+}
