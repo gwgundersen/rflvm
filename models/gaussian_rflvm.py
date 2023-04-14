@@ -15,7 +15,7 @@ from   scipy.linalg.lapack import dpotrs
 class GaussianRFLVM(_BaseRFLVM):
 
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
-                 n_rffs, dp_prior_obs, dp_df, marginalize):
+                 n_rffs, dp_prior_obs, dp_df, marginalize, missing):
         """Initialize Gaussian RFLVM.
         """
         self.marginalize = marginalize
@@ -30,7 +30,7 @@ class GaussianRFLVM(_BaseRFLVM):
             n_rffs=n_rffs,
             dp_prior_obs=dp_prior_obs,
             dp_df=dp_df,
-            missing=None
+            missing=missing
         )
 
 # -----------------------------------------------------------------------------

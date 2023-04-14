@@ -35,7 +35,7 @@ def fit_log_plot(args):
     log = Logger(directory=args.directory)
     log.log(f'Initializing RNG with seed {args.seed}.')
     rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions)
+    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric)
     viz = Visualizer(args.directory, ds)
 
     # Set values on `args` so that they are logged.
@@ -74,7 +74,7 @@ def fit_log_plot(args):
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df,
             marginalize=args.marginalize,
-            missing = ds.missing
+            missing = ds.Y_missing
         )
     elif args.model == 'poisson':
         model = PoissonRFLVM(
@@ -237,6 +237,11 @@ if __name__ == '__main__':
                    type=str,
                    default='gaussian',
                    choices=EMISSIONS)
+    p.add_argument('--metric',
+                   help="metric for bball gaussian",
+                   required = False,
+                   type = str,
+                   default = "bpm" )
     p.add_argument('--n_iters',
                    help='Number of iterations for the Gibbs sampler.',
                    required=False,

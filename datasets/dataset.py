@@ -28,7 +28,7 @@ class Dataset:
         self.X = X
         self.R = R
         self.labels = labels
-        assert Y.shape == missing.shape
+        assert Y.shape == missing.shape ## make sure missing indicator 
         self.Y_missing = missing
 
     def __str__(self):

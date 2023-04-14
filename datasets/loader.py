@@ -13,7 +13,7 @@ from   sklearn.datasets import make_s_curve
 
 # -----------------------------------------------------------------------------
 
-def load_dataset(rng, name, emissions, **kwargs):
+def load_dataset(rng, name, emissions, *args):
     """Given a dataset string, returns data and possibly true generative
     parameters.
     """
@@ -26,7 +26,7 @@ def load_dataset(rng, name, emissions, **kwargs):
     if name == 's-curve':
         return loader(rng, emissions)
     else:
-        return loader(**kwargs)
+        return loader(*args)
 
 
 # -----------------------------------------------------------------------------
@@ -76,7 +76,7 @@ def load_bball(metric):
     df = df.sort_values(by=["id","year"])
     df = df[[metric, "id", "age" ]]
     df  = df.pivot(columns="age",values=metric,index="id")
-    return Dataset("bball", Y = df.to_numpy(), missing = df.isnull().to_numpy())
+    return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy())
     
 
 
