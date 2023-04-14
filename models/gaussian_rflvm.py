@@ -15,7 +15,7 @@ from   scipy.linalg.lapack import dpotrs
 class GaussianRFLVM(_BaseRFLVM):
 
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
-                 n_rffs, dp_prior_obs, dp_df, marginalize):
+                 n_rffs, dp_prior_obs, dp_df, marginalize, missing):
         """Initialize Gaussian RFLVM.
         """
         self.marginalize = marginalize
@@ -29,7 +29,8 @@ class GaussianRFLVM(_BaseRFLVM):
             n_clusters=n_clusters,
             n_rffs=n_rffs,
             dp_prior_obs=dp_prior_obs,
-            dp_df=dp_df
+            dp_df=dp_df,
+            missing=missing
         )
 
 # -----------------------------------------------------------------------------
@@ -70,9 +71,9 @@ class GaussianRFLVM(_BaseRFLVM):
             F = phi_X @ beta.T
             # Explicitly shape before flattening to ensure elements align.
             C = np.sqrt(np.repeat(self.sigma_y[None, :], self.N, axis=0))
-            LL = ag_norm.logpdf(self.Y.flatten(),
-                                F.flatten(),
-                                C.flatten()).sum()
+            LL = ag_norm.logpdf(self.Y.flatten()[~self.Y_missing],
+                                F.flatten()[~self.Y_missing],
+                                C.flatten()[~self.Y_missing]).sum()
             return LL
 
     def log_marginal_likelihood(self, X, W):

@@ -13,19 +13,20 @@ from   sklearn.datasets import make_s_curve
 
 # -----------------------------------------------------------------------------
 
-def load_dataset(rng, name, emissions):
+def load_dataset(rng, name, emissions, *args):
     """Given a dataset string, returns data and possibly true generative
     parameters.
     """
     loader = {
         'bridges' : load_bridges,
         'congress': load_congress,
-        's-curve' : gen_s_curve
+        's-curve' : gen_s_curve,
+        "bball": load_bball
     }[name]
     if name == 's-curve':
         return loader(rng, emissions)
     else:
-        return loader()
+        return loader(*args)
 
 
 # -----------------------------------------------------------------------------
@@ -62,6 +63,22 @@ def load_congress():
     Y = df1.values[:, 1:].astype(int)
     labels = np.array([0 if x == 'R' else 1 for x in df2.party.values])
     return Dataset('congress109', True, Y, labels=labels)
+
+
+def load_bball(metric):
+    """ Load bball data
+
+    Returns:
+        Dataset: dataset of the nba data
+    """
+
+    df = pd.read_csv("datasets/player_data.csv")
+    df = df.sort_values(by=["id","year"])
+    df = df[[metric, "id", "age" ]]
+    df  = df.pivot(columns="age",values=metric,index="id")
+    return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy())
+    
+
 
 
 # -----------------------------------------------------------------------------
