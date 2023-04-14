@@ -73,7 +73,8 @@ def fit_log_plot(args):
             n_rffs=args.n_rffs,
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df,
-            marginalize=args.marginalize
+            marginalize=args.marginalize,
+            missing = ds.missing
         )
     elif args.model == 'poisson':
         model = PoissonRFLVM(
@@ -229,7 +230,7 @@ if __name__ == '__main__':
                    help='Experimental dataset.',
                    type=str,
                    default='s-curve',
-                   choices=['bridges', 'congress', 's-curve'])
+                   choices=['bridges', 'congress', 's-curve', "bball"])
     p.add_argument('--emissions',
                    help='Emissions used S-curve dataset.',
                    required=False,
