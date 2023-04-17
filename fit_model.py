@@ -238,10 +238,10 @@ if __name__ == '__main__':
                    default='gaussian',
                    choices=EMISSIONS)
     p.add_argument('--metric',
-                   help='metric for bball',
-                   required=False,
-                   type=str,
-                   default='bpm')
+                   help="metric for bball gaussian",
+                   required = False,
+                   type = str,
+                   default = "bpm" )
     p.add_argument('--n_iters',
                    help='Number of iterations for the Gibbs sampler.',
                    required=False,

@@ -24,7 +24,7 @@ from   sklearn.decomposition import PCA
 class _BaseRFLVM:
 
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
-                 n_rffs, dp_prior_obs, dp_df):
+                 n_rffs, dp_prior_obs, dp_df, missing):
         """Initialize base RFLVM.
         """
         # RNG stream.
@@ -34,6 +34,7 @@ class _BaseRFLVM:
         # Model hyperparameters.
         # ----------------------
         self.Y         = data
+        self.Y_missing = missing
         self.N, self.J = data.shape
         if n_rffs % 2 != 0:
             # This is because we use the following definition of phi(X):
