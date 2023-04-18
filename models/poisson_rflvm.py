@@ -15,7 +15,7 @@ from   scipy.optimize import minimize
 class PoissonRFLVM(_BaseRFLVM):
 
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
-                 n_rffs, dp_prior_obs, dp_df):
+                 n_rffs, dp_prior_obs, dp_df, missing):
         """Initialize Poisson RFLVM.
         """
         super().__init__(
@@ -27,8 +27,10 @@ class PoissonRFLVM(_BaseRFLVM):
             n_clusters=n_clusters,
             n_rffs=n_rffs,
             dp_prior_obs=dp_prior_obs,
-            dp_df=dp_df
+            dp_df=dp_df,
+            missing=missing
         )
+        self.Y_missing = missing
 
 # -----------------------------------------------------------------------------
 # Public API.
@@ -51,7 +53,7 @@ class PoissonRFLVM(_BaseRFLVM):
         phi_X = self.phi(X, W, add_bias=True)
         F     = phi_X @ beta.T
         theta = np.exp(F)
-        LL    = ag_poisson.logpmf(self.Y, theta).sum()
+        LL    = ag_poisson.logpmf(self.Y[~self.Y_missing], theta).sum()
         return LL
 
     def get_params(self):
