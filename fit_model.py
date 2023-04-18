@@ -86,7 +86,8 @@ def fit_log_plot(args):
             n_clusters=args.n_clusters,
             n_rffs=args.n_rffs,
             dp_prior_obs=args.dp_prior_obs,
-            dp_df=args.dp_df
+            dp_df=args.dp_df,
+            missing=ds.Y_missing
         )
     elif args.model == 'multinomial':
         model = MultinomialRFLVM(
@@ -202,7 +203,7 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # Flush and save state.
     # ---------------------
     params = model.get_params()
-    fpath = f'{args.directory}/{args.model}_rflvm.pickle'
+    fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
 
 
