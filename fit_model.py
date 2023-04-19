@@ -7,6 +7,7 @@ from   datasets import load_dataset
 from   logger import (format_number,
                       Logger)
 from   models import (BernoulliRFLVM,
+                      BinomialRFLVM,
                       GaussianRFLVM,
                       MultinomialRFLVM,
                       NegativeBinomialRFLVM,
@@ -35,7 +36,7 @@ def fit_log_plot(args):
     log = Logger(directory=args.directory)
     log.log(f'Initializing RNG with seed {args.seed}.')
     rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model)
+    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model, args.exposure)
     viz = Visualizer(args.directory, ds)
 
     # Set values on `args` so that they are logged.
@@ -62,6 +63,20 @@ def fit_log_plot(args):
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df
         )
+    elif args.model == "binomial":
+        model = BinomialRFLVM(
+            rng=rng,
+            data=ds.Y,
+            n_burn=args.n_burn,
+            n_iters=args.n_iters,
+            latent_dim=ds.latent_dim,
+            n_clusters=args.n_clusters,
+            n_rffs=args.n_rffs,
+            dp_prior_obs=args.dp_prior_obs,
+            dp_df=args.dp_df,
+            missing = ds.Y_missing,
+            exposure=ds.exposure
+        )
     elif args.model == 'gaussian':
         model = GaussianRFLVM(
             rng=rng,
@@ -75,7 +90,7 @@ def fit_log_plot(args):
             dp_df=args.dp_df,
             marginalize=args.marginalize,
             missing = ds.Y_missing,
-            offset=ds.offset
+            exposure=ds.exposure
         )
     elif args.model == 'poisson':
         model = PoissonRFLVM(
@@ -89,7 +104,7 @@ def fit_log_plot(args):
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df,
             missing=ds.Y_missing,
-            offset=ds.offset
+            exposure=ds.exposure
         )
     elif args.model == 'multinomial':
         model = MultinomialRFLVM(
@@ -244,12 +259,12 @@ if __name__ == '__main__':
                    help="metric for bball",
                    required = False,
                    type = str,
-                   default = "bpm" )
+                   default = "bpm")
     p.add_argument('--exposure',
                    help="exposure feature for bball",
                    required = False,
                    type = str,
-                   default = "minutes" )
+                   default = "minutes")
     p.add_argument('--n_iters',
                    help='Number of iterations for the Gibbs sampler.',
                    required=False,
