@@ -15,7 +15,7 @@ from   scipy.optimize import minimize
 class PoissonRFLVM(_BaseRFLVM):
 
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
-                 n_rffs, dp_prior_obs, dp_df, missing, offset):
+                 n_rffs, dp_prior_obs, dp_df, missing, exposure):
         """Initialize Poisson RFLVM.
         """
         super().__init__(
@@ -30,7 +30,7 @@ class PoissonRFLVM(_BaseRFLVM):
             dp_df=dp_df
         )
         self.Y_missing = missing.flatten()
-        self.offset = offset
+        self.offset = exposure
 
 # -----------------------------------------------------------------------------
 # Public API.

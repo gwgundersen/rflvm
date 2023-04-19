@@ -65,7 +65,7 @@ def load_congress():
     return Dataset('congress109', True, Y, labels=labels)
 
 
-def load_bball(metric, model):
+def load_bball(metric, model, exposure):
     """ Load bball data
 
     Returns:
@@ -74,13 +74,18 @@ def load_bball(metric, model):
 
     df = pd.read_csv("datasets/player_data.csv")
     df = df.sort_values(by=["id","year"])
-    df = df[[metric, "id", "age", "minutes"]]
-    df_offset = df[["id", "age", "minutes"]]
-    df  = df.pivot(columns="age",values=metric,index="id")
-    offset = 0
+    metric_df = df[[metric, "id", "age"]]
+    exposure_df = df[["id", "age", exposure]]
+    metric_df  = metric_df.pivot(columns="age",values=metric,index="id")
     if model == "poisson":
-        offset = np.log(df_offset.pivot(columns="age", values="minutes",index="id").fillna(1).to_numpy())
-    return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy(), offset=offset)
+        offset = np.log(exposure_df.pivot(columns="age", values=exposure,index="id").fillna(1).to_numpy())
+        return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy(), exposure=offset)
+    elif model == "binomial":
+        trials = exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy()
+        return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy(), exposure=trials)
+    else:
+        return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy(), exposure=0)
+    
     
 
 
