@@ -35,7 +35,7 @@ def fit_log_plot(args):
     log = Logger(directory=args.directory)
     log.log(f'Initializing RNG with seed {args.seed}.')
     rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric)
+    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model)
     viz = Visualizer(args.directory, ds)
 
     # Set values on `args` so that they are logged.
@@ -74,7 +74,8 @@ def fit_log_plot(args):
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df,
             marginalize=args.marginalize,
-            missing = ds.Y_missing
+            missing = ds.Y_missing,
+            offset=ds.offset
         )
     elif args.model == 'poisson':
         model = PoissonRFLVM(
@@ -87,7 +88,8 @@ def fit_log_plot(args):
             n_rffs=args.n_rffs,
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df,
-            missing=ds.Y_missing
+            missing=ds.Y_missing,
+            offset=ds.offset
         )
     elif args.model == 'multinomial':
         model = MultinomialRFLVM(
