@@ -35,7 +35,7 @@ def fit_log_plot(args):
     log = Logger(directory=args.directory)
     log.log(f'Initializing RNG with seed {args.seed}.')
     rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric)
+    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model)
     viz = Visualizer(args.directory, ds)
 
     # Set values on `args` so that they are logged.
@@ -74,7 +74,8 @@ def fit_log_plot(args):
             dp_prior_obs=args.dp_prior_obs,
             dp_df=args.dp_df,
             marginalize=args.marginalize,
-            missing = ds.Y_missing
+            missing = ds.Y_missing,
+            offset=ds.offset
         )
     elif args.model == 'poisson':
         model = PoissonRFLVM(
@@ -86,7 +87,9 @@ def fit_log_plot(args):
             n_clusters=args.n_clusters,
             n_rffs=args.n_rffs,
             dp_prior_obs=args.dp_prior_obs,
-            dp_df=args.dp_df
+            dp_df=args.dp_df,
+            missing=ds.Y_missing,
+            offset=ds.offset
         )
     elif args.model == 'multinomial':
         model = MultinomialRFLVM(
@@ -202,7 +205,7 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # Flush and save state.
     # ---------------------
     params = model.get_params()
-    fpath = f'{args.directory}/{args.model}_rflvm.pickle'
+    fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
 
 

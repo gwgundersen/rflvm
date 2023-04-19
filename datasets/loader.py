@@ -65,7 +65,7 @@ def load_congress():
     return Dataset('congress109', True, Y, labels=labels)
 
 
-def load_bball(metric):
+def load_bball(metric, model):
     """ Load bball data
 
     Returns:
@@ -74,9 +74,13 @@ def load_bball(metric):
 
     df = pd.read_csv("datasets/player_data.csv")
     df = df.sort_values(by=["id","year"])
-    df = df[[metric, "id", "age" ]]
+    df = df[[metric, "id", "age", "minutes"]]
+    df_offset = df[["id", "age", "minutes"]]
     df  = df.pivot(columns="age",values=metric,index="id")
-    return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy())
+    offset = 0
+    if model == "poisson":
+        offset = np.log(df_offset.pivot(columns="age", values="minutes",index="id").fillna(1).to_numpy())
+    return Dataset("bball", False, Y = df.fillna(df.mean()).to_numpy(), missing = df.isnull().to_numpy(), offset=offset)
     
 
 
