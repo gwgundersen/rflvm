@@ -8,3 +8,4 @@ from   models.gaussian_rflvm import GaussianRFLVM
 from   models.multinomial_rflvm import MultinomialRFLVM
 from   models.negbinom_rflvm import NegativeBinomialRFLVM
 from   models.poisson_rflvm import PoissonRFLVM
+from models.binomial_rflvm import BinomialRFLVM

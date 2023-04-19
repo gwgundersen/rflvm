@@ -6,7 +6,7 @@ Abstract dataset attributes.
 class Dataset:
 
     def __init__(self, name, is_categorical, Y, X=None, F=None, K=None, R=None,
-                 labels=None, latent_dim=None, missing = None, offset = None):
+                 labels=None, latent_dim=None, missing = None, exposure = None):
 
         self.name = name
         self.R = R
@@ -28,7 +28,7 @@ class Dataset:
         self.X = X
         self.R = R
         self.labels = labels
-        self.offset = offset
+        self.exposure = exposure
         assert Y.shape == missing.shape ## make sure missing indicator 
         self.Y_missing = missing
 
