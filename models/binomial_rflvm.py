@@ -1,10 +1,9 @@
 """============================================================================
-RFLVM with Bernoulli observations.
+RFLVM with Binomial observations.
 ============================================================================"""
 
 import autograd.numpy as np
 from   autograd.scipy.special import expit as ag_logistic
-from   autograd.scipy.stats import (binomial as ag_binom)
 from   models._base_logistic_rflvm import _BaseLogisticRFLVM
 from   scipy.special import expit as logistic
 
@@ -45,7 +44,7 @@ class BinomialRFLVM(_BaseLogisticRFLVM):
         Y     = logistic(F)
         if return_latent:
             K = phi_X @ phi_X.T
-            return Y, F, K
+            return Y * self.trials, F, K
         return Y * self.trials
 
     def log_likelihood(self, X, W, beta):
@@ -53,8 +52,11 @@ class BinomialRFLVM(_BaseLogisticRFLVM):
         """
         phi_X = self.phi(X, W, add_bias=True)
         P     = ag_logistic(phi_X @ beta.T)
-        LL = ag_binom.logpmf(k = self.Y.flatten()[~self.Y_missing], n = self.trials.flatten()[~self.Y_missing], 
-                             p = P.flatten()[~self.Y_missing])
+        k = self.Y.flatten()[~self.Y_missing]
+        n = self.trials.flatten()[~self.Y_missing]
+        p = P.flatten()[~self.Y_missing]
+        LL  = np.log(p)*(k) + (n-k)*np.log(1-p)
+
         return LL.sum()
 
     def get_params(self):

@@ -227,7 +227,7 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    EMISSIONS = ['bernoulli', 'gaussian', 'multinomial', 'negbinom', 'poisson']
+    EMISSIONS = ['bernoulli', 'gaussian', 'multinomial', 'negbinom', 'poisson', 'binomial']
 
     p = argparse.ArgumentParser()
     p.add_argument('--directory',
