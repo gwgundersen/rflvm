@@ -83,6 +83,9 @@ def load_bball(metric, model, exposure):
     elif model == "binomial":
         trials = exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy()
         return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=trials)
+    elif model == "gaussian":
+        variance_scale = np.sqrt(exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy())
+        return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=variance_scale)
     else:
         return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=0)
     
