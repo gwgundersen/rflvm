@@ -19,4 +19,4 @@ RUN echo "echo \"Jupyter server token: \$(jupyter server list 2>&1 | grep -oP '(
     echo "sh \${HOME}/.get-jupyter-url.sh" >> ${HOME}/.bashrc
 
 
-RUN pip install GPy numpy scipy matplotlib pandas autograd scikit-learn git+https://github.com/slinderman/pypolyagamma.git
+RUN pip install GPy numpy scipy matplotlib pandas autograd scikit-learn git+https://github.com/slinderman/pypolyagamma.git plotly
