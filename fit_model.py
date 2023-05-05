@@ -221,8 +221,9 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # ---------------------
     params = model.get_params()
     fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
+    fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
-
+    pickle.dump(model, open(fpath_model,"wb"))
 
 # -----------------------------------------------------------------------------
 
