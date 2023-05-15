@@ -65,29 +65,47 @@ def load_congress():
     return Dataset('congress109', True, Y, labels=labels)
 
 
-def load_bball(metric, model, exposure):
+def load_bball(metric, model, exposure, age = None, gaussian_indices = None, poisson_indices = None,
+               binomial_indices = None):
     """ Load bball data
 
     Returns:
         Dataset: dataset of the nba data
     """
-
     df = pd.read_csv("datasets/player_data.csv")
-    df = df.sort_values(by=["id","year"])
-    metric_df = df[[metric, "id", "age"]]
-    exposure_df = df[["id", "age", exposure]]
-    metric_df  = metric_df.pivot(columns="age",values=metric,index="id")
-    if model == "poisson":
-        offset = np.log(exposure_df.pivot(columns="age", values=exposure,index="id").fillna(1).to_numpy())
-        return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=offset)
-    elif model == "binomial":
-        trials = exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy()
-        return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=trials)
-    elif model == "gaussian":
-        variance_scale = np.sqrt(exposure_df.pivot(columns="age", index="id", values=exposure).fillna(1).to_numpy())
-        return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=variance_scale)
+    if model == "mixed":
+        metric_df = df[df["age"] == age][[metric]]
+        exposure_df = df[df["age"] == age][[exposure]]
+        player_id_df = df[["id"]].drop_duplicates()
+        metric = pd.merge(metric_df, player_id_df, on ="id", how = "right")
+        exposure = pd.merge(exposure_df, player_id_df, on ="id", how = "right")
+        missing = metric.isnull().to_numpy()
+        if gaussian_indices:
+            exposure.loc[:, gaussian_indices] = np.sqrt(exposure.loc[:, gaussian_indices].fillna(1))
+        if poisson_indices:
+            exposure.loc[:, poisson_indices] = np.log(exposure.loc[:, poisson_indices].fillna(1))
+        if binomial_indices:
+            pass
+        return Dataset("bball", False, Y = metric.fillna(metric.mean()).to_numpy(),
+                       missing = missing, exposure = exposure.to_numpy(), gaussian_indices = gaussian_indices,
+                       poisson_indices = poisson_indices, binomial_indices = binomial_indices)
+        
     else:
-        return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=0)
+        df = df.sort_values(by=["id","year"])
+        metric_df = df[[metric, "id", "age"]]
+        exposure_df = df[["id", "age", exposure]]
+        metric_df  = metric_df.pivot(columns="age",values=metric,index="id")
+        if model == "poisson":
+            offset = np.log(exposure_df.pivot(columns="age", values=exposure,index="id").fillna(1).to_numpy())
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=offset)
+        elif model == "binomial":
+            trials = exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy()
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=trials)
+        elif model == "gaussian":
+            variance_scale = np.sqrt(exposure_df.pivot(columns="age", index="id", values=exposure).fillna(1).to_numpy())
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=variance_scale)
+        else:
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=0)
     
     
 

@@ -10,6 +10,7 @@ from   models import (BernoulliRFLVM,
                       BinomialRFLVM,
                       GaussianRFLVM,
                       MultinomialRFLVM,
+                      MixedOutputRFLVM,
                       NegativeBinomialRFLVM,
                       PoissonRFLVM)
 from   metrics import (knn_classify,
@@ -36,7 +37,7 @@ def fit_log_plot(args):
     log = Logger(directory=args.directory)
     log.log(f'Initializing RNG with seed {args.seed}.')
     rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model, args.exposure)
+    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model, args.exposure[0] if len(args.exposure) > 1 else args.exposure)
     viz = Visualizer(args.directory, ds)
 
     # Set values on `args` so that they are logged.
@@ -105,6 +106,23 @@ def fit_log_plot(args):
             dp_df=args.dp_df,
             missing=ds.Y_missing,
             exposure=ds.exposure
+        )
+    elif args.model == 'mixed':
+        model = MixedOutputRFLVM(
+            rng=rng,
+            data=ds.Y,
+            n_burn=args.n_burn,
+            n_iters=args.n_iters,
+            latent_dim=ds.latent_dim,
+            n_clusters=args.n_clusters,
+            n_rffs=args.n_rffs,
+            dp_prior_obs=args.dp_prior_obs,
+            dp_df=args.dp_df,
+            missing=ds.Y_missing,
+            exposure=ds.exposure,
+            gaussian_indices=args.gaussian_indices,
+            poisson_indices=args.poisson_indices,
+            binomial_indices=args.binomial_indices
         )
     elif args.model == 'multinomial':
         model = MultinomialRFLVM(
@@ -262,10 +280,25 @@ if __name__ == '__main__':
                    type = str,
                    default = "bpm")
     p.add_argument('--exposure',
-                   help="exposure feature for bball",
+                   help="exposure features for bball",
                    required = False,
-                   type = str,
+                   type = list,
                    default = "minutes")
+    p.add_argument('--gaussian_indices',
+                   help="mixed feature for bball",
+                   required = False,
+                   type = list,
+                   default = [])
+    p.add_argument('--poisson_indices',
+                   help="mixed feature for bball",
+                   required = False,
+                   type = list,
+                   default = [])
+    p.add_argument('--binomial_indices',
+                   help="mixed feature for bball",
+                   required = False,
+                   type = list,
+                   default = [])
     p.add_argument('--n_iters',
                    help='Number of iterations for the Gibbs sampler.',
                    required=False,
