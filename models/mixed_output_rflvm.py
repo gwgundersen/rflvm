@@ -103,7 +103,7 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
             k = self.Y[:, self.binomial_indices].flatten()[~self.Y_binomial_missing]
             n = self.exposure_binomial.flatten()[~self.Y_binomial_missing]
             p = theta.flatten()
-            LL  = np.log(p)*(k) + (n-k)*np.log(1-p)
+            LL  += np.log(p)*(k) + (n-k)*np.log(1-p)
         
         return LL
     
@@ -123,7 +123,7 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
             self.sigma_y = np.ones(len(self.gaussian_indices)) if self.gaussian_indices is not None else None 
             self.omega = np.empty(self.Y[:, self.binomial_indices].shape)
 
-    def _sample_beta_and_sigma_y(self):
+    def _sample_mixed_output_beta(self):
         if self.gaussian_indices is not None:
             self._sample_beta_gaussian
         if self.poisson_indices is not None:
@@ -178,6 +178,19 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
         beta_map = resp.x.reshape(J_poiss, self.M+1)
         self.beta[self.poisson_indices,:] = beta_map
     
+    def _sample_beta_binomial(self):
+        """Sample `β|ω ~ N(m, V)`. See (Polson 2013).
+        """
+        phi_X = self.phi(self.X, self.W, add_bias=True)
+
+        for i,j in enumerate(self.binomial_indices):
+            # This really computes: phi_X.T @ np.diag(omega[:, j]) @ phi_X
+            J = (phi_X * self.omega[:, i][:, None]).T @ phi_X + \
+                self.inv_B
+            h = phi_X.T @ self._kappa_func(i) + self.inv_B_b
+            joint_sample = self._sample_gaussian(J=J, h=h)
+            self.beta[j] = joint_sample
+    
     def _a_func(self, j=None):
         """See parent class.
         """
@@ -220,15 +233,23 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
         self.omega = self.omega.reshape(self.Y[:, self.binomial_indices].shape)
 
 
-    def _sample_beta_binomial(self):
-        """Sample `β|ω ~ N(m, V)`. See (Polson 2013).
+    def _sample_likelihood_params(self):
+        """Sample likelihood- or observation-specific model parameters.
         """
-        phi_X = self.phi(self.X, self.W, add_bias=True)
+        self._sample_mixed_output_beta()
+    
 
-        for i,j in enumerate(self.binomial_indices):
-            # This really computes: phi_X.T @ np.diag(omega[:, j]) @ phi_X
-            J = (phi_X * self.omega[:, i][:, None]).T @ phi_X + \
-                self.inv_B
-            h = phi_X.T @ self._kappa_func(i) + self.inv_B_b
-            joint_sample = self._sample_gaussian(J=J, h=h)
-            self.beta[j] = joint_sample
+
+    def _evaluate_proposal(self, W_prop):
+        """Evaluate Metropolis-Hastings proposal `W` using the log evidence.
+        """
+        
+        return self.log_likelihood(W=W_prop)
+
+    def _log_posterior_x(self, X):
+        """Compute log posterior of `X`.
+        """
+        
+        LL = self.log_likelihood(X=X)
+        LP = self._log_prior_x(X)
+        return LL + LP
