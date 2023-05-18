@@ -69,9 +69,9 @@ class GaussianRFLVM(_BaseRFLVM):
         else:
             beta = kwargs.get('beta', self.beta)
             phi_X = self.phi(X, W, add_bias=True)
-            F = phi_X @ beta.T
+            F = phi_X @ beta.T 
             # Explicitly shape before flattening to ensure elements align.
-            C = np.sqrt(np.repeat(self.sigma_y[None, :], self.N, axis=0))
+            C = np.sqrt(np.repeat(self.sigma_y[None, :], self.N, axis=0))/self.variance_scale
             LL = ag_norm.logpdf(self.Y.flatten()[~self.Y_missing],
                                 F.flatten()[~self.Y_missing],
                                 C.flatten()[~self.Y_missing]).sum()

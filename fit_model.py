@@ -10,6 +10,7 @@ from   models import (BernoulliRFLVM,
                       BinomialRFLVM,
                       GaussianRFLVM,
                       MultinomialRFLVM,
+                      MixedOutputRFLVM,
                       NegativeBinomialRFLVM,
                       PoissonRFLVM)
 from   metrics import (knn_classify,
@@ -36,7 +37,9 @@ def fit_log_plot(args):
     log = Logger(directory=args.directory)
     log.log(f'Initializing RNG with seed {args.seed}.')
     rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions, args.metric, args.model, args.exposure)
+    ds  = load_dataset(rng, args.dataset, args.emissions, metric_list = args.metric.split(",")[0] if len(args.metric.split(",")) <= 1 else args.metric.split(","), model = args.model, 
+                       exposure_list = args.exposure.split(",")[0] if len(args.exposure.split(",")) <= 1 else args.exposure.split(","), age = args.age, gaussian_indices = args.gaussian_indices,
+                       poisson_indices = args.poisson_indices, binomial_indices = args.binomial_indices)
     viz = Visualizer(args.directory, ds)
 
     # Set values on `args` so that they are logged.
@@ -105,6 +108,23 @@ def fit_log_plot(args):
             dp_df=args.dp_df,
             missing=ds.Y_missing,
             exposure=ds.exposure
+        )
+    elif args.model == 'mixed':
+        model = MixedOutputRFLVM(
+            rng=rng,
+            data=ds.Y,
+            n_burn=args.n_burn,
+            n_iters=args.n_iters,
+            latent_dim=ds.latent_dim,
+            n_clusters=args.n_clusters,
+            n_rffs=args.n_rffs,
+            dp_prior_obs=args.dp_prior_obs,
+            dp_df=args.dp_df,
+            missing=ds.Y_missing,
+            exposure=ds.exposure,
+            gaussian_indices=args.gaussian_indices,
+            poisson_indices=args.poisson_indices,
+            binomial_indices=args.binomial_indices
         )
     elif args.model == 'multinomial':
         model = MultinomialRFLVM(
@@ -221,13 +241,14 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # ---------------------
     params = model.get_params()
     fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
+    fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
-
+    pickle.dump(model, open(fpath_model,"wb"))
 
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    EMISSIONS = ['bernoulli', 'gaussian', 'multinomial', 'negbinom', 'poisson', 'binomial']
+    EMISSIONS = ['bernoulli', 'gaussian', 'multinomial', 'negbinom', 'poisson', 'binomial', "mixed"]
 
     p = argparse.ArgumentParser()
     p.add_argument('--directory',
@@ -259,12 +280,32 @@ if __name__ == '__main__':
                    help="metric for bball",
                    required = False,
                    type = str,
-                   default = "bpm")
+                   default = [])
+    p.add_argument('--age',
+                   help="metric for bball",
+                   required = False,
+                   type = int,
+                   default = 25)
     p.add_argument('--exposure',
-                   help="exposure feature for bball",
+                   help="exposure features for bball",
                    required = False,
                    type = str,
                    default = "minutes")
+    p.add_argument('--gaussian_indices',
+                   help="mixed feature for bball",
+                   required = False,
+                   type = lambda x: [int(a) for a in x.split(",")],
+                   default = [])
+    p.add_argument('--poisson_indices',
+                   help="mixed feature for bball",
+                   required = False,
+                   type = lambda x: [int(a) for a in x.split(",")],
+                   default = [])
+    p.add_argument('--binomial_indices',
+                   help="mixed feature for bball",
+                   required = False,
+                   type = lambda x: [int(a) for a in x.split(",")],
+                   default = [])
     p.add_argument('--n_iters',
                    help='Number of iterations for the Gibbs sampler.',
                    required=False,
