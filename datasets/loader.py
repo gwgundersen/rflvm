@@ -13,7 +13,7 @@ from   sklearn.datasets import make_s_curve
 
 # -----------------------------------------------------------------------------
 
-def load_dataset(rng, name, emissions, *args):
+def load_dataset(rng, name, emissions, **kwargs):
     """Given a dataset string, returns data and possibly true generative
     parameters.
     """
@@ -26,7 +26,7 @@ def load_dataset(rng, name, emissions, *args):
     if name == 's-curve':
         return loader(rng, emissions)
     else:
-        return loader(*args)
+        return loader(**kwargs)
 
 
 # -----------------------------------------------------------------------------
@@ -65,7 +65,7 @@ def load_congress():
     return Dataset('congress109', True, Y, labels=labels)
 
 
-def load_bball(metric, model, exposure, age = None, gaussian_indices = None, poisson_indices = None,
+def load_bball(metric_list, model, exposure_list, age = None, gaussian_indices = None, poisson_indices = None,
                binomial_indices = None):
     """ Load bball data
 
@@ -74,16 +74,16 @@ def load_bball(metric, model, exposure, age = None, gaussian_indices = None, poi
     """
     df = pd.read_csv("datasets/player_data.csv")
     if model == "mixed":
-        metric_df = df[df["age"] == age][[metric]]
-        exposure_df = df[df["age"] == age][[exposure]]
+        metric_df = df[df["age"] == age][metric_list + ["id"]]
+        exposure_df = df[df["age"] == age][exposure_list + ["id"]]
         player_id_df = df[["id"]].drop_duplicates()
-        metric = pd.merge(metric_df, player_id_df, on ="id", how = "right")
-        exposure = pd.merge(exposure_df, player_id_df, on ="id", how = "right")
+        metric = pd.merge(metric_df, player_id_df, on ="id", how = "right")[metric_list]
+        exposure = pd.merge(exposure_df, player_id_df, on ="id", how = "right").iloc[:,0:len(exposure_list)]
         missing = metric.isnull().to_numpy()
         if gaussian_indices:
-            exposure.loc[:, gaussian_indices] = np.sqrt(exposure.loc[:, gaussian_indices].fillna(1))
+            exposure.iloc[:, gaussian_indices] = np.sqrt(exposure.iloc[:, gaussian_indices].fillna(1))
         if poisson_indices:
-            exposure.loc[:, poisson_indices] = np.log(exposure.loc[:, poisson_indices].fillna(1))
+            exposure.iloc[:, poisson_indices] = np.log(exposure.iloc[:, poisson_indices].fillna(1))
         if binomial_indices:
             pass
         return Dataset("bball", False, Y = metric.fillna(metric.mean()).to_numpy(),

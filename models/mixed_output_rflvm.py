@@ -1,33 +1,19 @@
 import autograd.numpy as np
 from   autograd import jacobian
 from   scipy.optimize import minimize
-from models.poisson_rflvm import PoissonRFLVM
-from models.binomial_rflvm import BinomialRFLVM
-from models.gaussian_rflvm import GaussianRFLVM
+from models._base_rflvm import _BaseRFLVM
 from   scipy.special import expit as logistic
 from   autograd.scipy.special import expit as ag_logistic
 from   autograd.scipy.stats import norm as ag_norm, poisson as ag_poisson, multivariate_normal as ag_mvn
 from   scipy.linalg import solve_triangular
 from   scipy.linalg.lapack import dpotrs
 
-class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
+class MixedOutputRFLVM(_BaseRFLVM):
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
                  n_rffs, dp_prior_obs, dp_df, missing, exposure, gaussian_indices = None,
                  poisson_indices = None, binomial_indices = None):
         """Initialize Mixed Output RFLVM.
         """
-
-        super().__init__(
-            rng=rng,
-            data=data,
-            n_burn=n_burn,
-            n_iters=n_iters,
-            latent_dim=latent_dim,
-            n_clusters=n_clusters,
-            n_rffs=n_rffs,
-            dp_prior_obs=dp_prior_obs,
-            dp_df=dp_df
-        )
 
         self.marginalize = False
         self.poisson_indices = poisson_indices
@@ -48,6 +34,19 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
         if poisson_indices is not None:
             self.Y_poisson_missing = missing[:, poisson_indices].flatten()
             self.exposure_poisson = missing[:, poisson_indices]
+
+        super().__init__(
+            rng=rng,
+            data=data,
+            n_burn=n_burn,
+            n_iters=n_iters,
+            latent_dim=latent_dim,
+            n_clusters=n_clusters,
+            n_rffs=n_rffs,
+            dp_prior_obs=dp_prior_obs,
+            dp_df=dp_df
+        )
+
         
     
     def predict(self, X, return_latent=False):
@@ -102,8 +101,8 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
             theta = ag_logistic(F[:, self.binomial_indices])
             k = self.Y[:, self.binomial_indices].flatten()[~self.Y_binomial_missing]
             n = self.exposure_binomial.flatten()[~self.Y_binomial_missing]
-            p = theta.flatten()
-            LL  += np.log(p)*(k) + (n-k)*np.log(1-p)
+            p = theta.flatten()[~self.Y_binomial_missing]
+            LL  += (np.log(p)*(k) + (n-k)*np.log(1-p)).sum()
         
         return LL
     
@@ -114,14 +113,13 @@ class MixedOutputRFLVM(GaussianRFLVM, PoissonRFLVM, BinomialRFLVM):
         # linear regression.
         self.gamma_a0 = 1
         self.gamma_b0 = 1
-        if not self.marginalize:
-            # Linear coefficients β in `Poisson(exp(phi(X)*β))`.
-            self.b0   = np.zeros(self.M + 1)
-            self.B0   = np.eye(self.M + 1)
-            self.beta = self.rng.multivariate_normal(self.b0, self.B0,
-                                                     size=self.J)
-            self.sigma_y = np.ones(len(self.gaussian_indices)) if self.gaussian_indices is not None else None 
-            self.omega = np.empty(self.Y[:, self.binomial_indices].shape)
+        # Linear coefficients β in `Poisson(exp(phi(X)*β))`.
+        self.b0   = np.zeros(self.M + 1)
+        self.B0   = np.eye(self.M + 1)
+        self.beta = self.rng.multivariate_normal(self.b0, self.B0,
+                                                    size=self.J)
+        self.sigma_y = np.ones(len(self.gaussian_indices)) if self.gaussian_indices is not None else None 
+        self.omega = np.empty(self.Y[:, self.binomial_indices].shape)
 
     def _sample_mixed_output_beta(self):
         if self.gaussian_indices is not None:
