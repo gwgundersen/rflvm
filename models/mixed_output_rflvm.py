@@ -241,7 +241,6 @@ class MixedOutputRFLVM(_BaseRFLVM):
     def _evaluate_proposal(self, W_prop):
         """Evaluate Metropolis-Hastings proposal `W` using the log evidence.
         """
-        
         return self.log_likelihood(W=W_prop)
 
     def _log_posterior_x(self, X):
