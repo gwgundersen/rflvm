@@ -8,6 +8,7 @@ from   sklearn.metrics import (accuracy_score,
                                r2_score)
 from   sklearn.model_selection import KFold
 from   sklearn.neighbors import KNeighborsClassifier
+from arviz import ess, rhat, convert_to_dataset
 
 
 # -----------------------------------------------------------------------------
@@ -67,3 +68,27 @@ def affine_align(X, X_true=None, return_residuals=False):
     if return_residuals:
         return X @ W, res.sum()
     return X @ W
+
+
+def get_rhat(parameter: np.ndarray) -> np.ndarray:
+    """_summary_
+
+    Args:
+        parameter (np.ndarray): array with (chains, num samples, parameter size ** )
+        chains >= 2
+    Returns:
+        float: returns the rhat ndarray
+    """
+    return rhat(convert_to_dataset(parameter)).x.to_numpy()
+
+def get_ess(parameter: np.ndarray) -> np.ndarray:
+    """_summary_
+
+    Args:
+        parameter (np.ndarray): 
+
+    Returns:
+        float: return ndarray of effective sample size
+    """
+
+    return ess(convert_to_dataset(parameter)).x.to_numpy()

@@ -2,11 +2,11 @@
 Utility functions for common visualizations.
 ============================================================================"""
 
+import numpy as np
 import matplotlib.pyplot as plt
 from   metrics import affine_align
 from   scipy.special import expit as logistic
-
-
+from scipy.cluster.hierarchy import linkage, leaves_list
 # -----------------------------------------------------------------------------
 # Base visualizer for data with 2D latent variables.
 # -----------------------------------------------------------------------------
@@ -27,13 +27,31 @@ class Visualizer:
     def plot_X_init(self, X_init):
         self.plot_X(X=X_init, suffix='init')
 
-    def plot_iteration(self, t, Y, F, K, X):
+    def plot_iteration(self, t, Y, F, K, X, labels = []):
         self.plot_X(t=t, X=X)
+        self.plot_K(K = K, t = t, labels = labels)
         if F is not None:
             self.plot_F(t, F)
         if self.dataset.has_true_K and K is not None:
             self.compare_K(t, K)
         self.compare_Y(t, Y)
+
+    def plot_K(self, K, suffix = "", t = -1, labels = []):
+        dissimilarity = np.around(1 - np.abs(K), decimals = 10)
+        hierarchy = linkage(dissimilarity, method='complete')
+        order = leaves_list(hierarchy)
+        reordered_matrix = dissimilarity[:, order]
+        reordered_matrix = reordered_matrix[order, :]
+        plt.imshow(reordered_matrix, cmap='coolwarm_r')
+        plt.colorbar()
+        if suffix:
+            suffix = f'_{suffix}'
+        fname = f'{t}_K{suffix}.png'
+        plt.title("K Matrix")
+        plt.yticks(np.arange(0,len(order),50),labels[order][::50], fontsize=7)
+        plt.tight_layout()
+        self._save(fname)
+
 
     def plot_X(self, X, suffix='', t=-1):
         if suffix:
@@ -116,6 +134,18 @@ class Visualizer:
         ax2.imshow(Y)
         ax2.set_title(self.model_name)
         self._save(fname)
+
+    def plot_LL(self, LL_list: list[float], model_name = ""):
+        """ plots log likelihood line plot
+
+        Args:
+            LL_list (list): list of float
+        """
+        plt.plot(LL_list)
+        plt.ylabel("Log Likelihood")
+        plt.xlabel("Iteration (factor of 10)")
+        plt.title("Log Likelihood vs. MCMC Iteration")
+        self._save(f"{model_name}_LL.png")
 
     def _save(self, fname):
         plt.tight_layout()
