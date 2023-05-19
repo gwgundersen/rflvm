@@ -76,6 +76,7 @@ def load_bball(metric_list, model, exposure_list, age = None, gaussian_indices =
     if model == "mixed":
         metric_df = df[df["age"] == age][metric_list + ["id"]]
         exposure_df = df[df["age"] == age][exposure_list + ["id"]]
+        names_df = df[["id","name"]].drop_duplicates()["name"].values
         player_id_df = df[["id"]].drop_duplicates()
         metric = pd.merge(metric_df, player_id_df, on ="id", how = "right")[metric_list]
         exposure = pd.merge(exposure_df, player_id_df, on ="id", how = "right").iloc[:,0:len(exposure_list)]
@@ -88,24 +89,29 @@ def load_bball(metric_list, model, exposure_list, age = None, gaussian_indices =
             pass
         return Dataset("bball", False, Y = metric.fillna(metric.mean()).to_numpy(),
                        missing = missing, exposure = exposure.to_numpy(), gaussian_indices = gaussian_indices,
-                       poisson_indices = poisson_indices, binomial_indices = binomial_indices)
+                       poisson_indices = poisson_indices, binomial_indices = binomial_indices, data = names_df )
         
     else:
         df = df.sort_values(by=["id","year"])
+        player_id_df = df[["id","name"]].drop_duplicates()["name"].values
         metric_df = df[[metric, "id", "age"]]
         exposure_df = df[["id", "age", exposure]]
         metric_df  = metric_df.pivot(columns="age",values=metric,index="id")
         if model == "poisson":
             offset = np.log(exposure_df.pivot(columns="age", values=exposure,index="id").fillna(1).to_numpy())
-            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=offset)
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=offset,
+                           data = player_id_df)
         elif model == "binomial":
             trials = exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy()
-            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=trials)
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), 
+                           exposure=trials, data = player_id_df)
         elif model == "gaussian":
             variance_scale = np.sqrt(exposure_df.pivot(columns="age", index="id", values=exposure).fillna(1).to_numpy())
-            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=variance_scale)
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), 
+                           exposure=variance_scale, data = player_id_df)
         else:
-            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=0)
+            return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), 
+                           exposure=0, data = player_id_df)
     
     
 
