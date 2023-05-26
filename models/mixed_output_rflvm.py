@@ -123,11 +123,11 @@ class MixedOutputRFLVM(_BaseRFLVM):
 
     def _sample_mixed_output_beta(self):
         if self.gaussian_indices is not None:
-            self._sample_beta_gaussian
+            self._sample_beta_gaussian()
         if self.poisson_indices is not None:
-            self._sample_beta_poisson
+            self._sample_beta_poisson()
         if self.binomial_indices is not None:
-            self._sample_beta_binomial
+            self._sample_beta_binomial()
 
     def _sample_beta_gaussian(self):
         """Gibbs sample `beta` and noise parameter `sigma_y`.
