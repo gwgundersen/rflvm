@@ -3,6 +3,7 @@ Fit random feature latent variable model.
 ============================================================================"""
 
 import argparse
+import pandas as pd
 from   datasets import load_dataset
 from   logger import (format_number,
                       Logger)
@@ -182,9 +183,11 @@ def fit_log_plot(args):
             LL = plot_and_print(t, rng, log, viz, ds, model, e)
             LL_list.append(LL)
 
-    params = model.get_params()
-    for param_name, param_val in params.items():
-        print(f"ESS for {param_name}", get_ess(np.expand_dims(param_val,0)))
+    param = model.get_params()
+    ESS = pd.DataFrame(get_ess(np.expand_dims(param["X"],0)))
+    ESS["name"] = ds.data
+    ESS.to_csv("ESS.csv",index=False)
+    print(f"ESS for X", ESS)
 
     viz.plot_LL(LL_list, model_name=f"{args.model}_{args.metric}")
     
