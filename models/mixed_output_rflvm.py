@@ -70,9 +70,11 @@ class MixedOutputRFLVM(_BaseRFLVM):
         """Return model parameters.
         """
         X = self.X_samples if self.t >= self.n_burn else self.X
+        F = self.F_samples if self.t >= self.n_burn else None
         return dict(
             X=X,
-            W=self.W
+            W=self.W,
+            F=F
         )
 
     def log_likelihood(self, **kwargs):
