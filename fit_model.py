@@ -193,8 +193,6 @@ def fit_log_plot(args):
     ESS_F["name"] = ds.data
     ESS_F.to_csv("ESS_F.csv", index = False)
 
-
-    viz.plot_LL(LL_list, model_name=f"{args.model}_{args.metric}")
     
     elapsed_time = (perf_counter() - s_start) / 3600
     log.log_hline()
