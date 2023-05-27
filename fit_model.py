@@ -15,7 +15,7 @@ from   models import (BernoulliRFLVM,
                       PoissonRFLVM)
 from   metrics import (knn_classify,
                        mean_squared_error,
-                       r_squared, get_ess)
+                       r_squared, get_ess, rotate_factors)
 import numpy as np
 import pandas as pd
 from   numpy.random import RandomState
@@ -184,7 +184,7 @@ def fit_log_plot(args):
 
     
     print("ESS for X")
-    ESS_X = pd.DataFrame(get_ess(np.expand_dims(model.get_params()["X"],0)), columns=["X1","X2"])
+    ESS_X = pd.DataFrame(get_ess(np.expand_dims(rotate_factors(model.get_params()["X"])[0],0)), columns=["X1","X2"])
     ESS_X["name"] = ds.data
     ESS_X.to_csv("ESS_X.csv", index = False)
 
@@ -209,7 +209,7 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # ---------------------------
     data = ds.data if ds.data is not None else []
     Y_pred, F_pred, K_pred = model.predict(model.X, return_latent=True)
-    LL = model.log_likelihood()
+    # LL = model.log_likelihood()
     # Plot visualizations.
     # --------------------
     viz.plot_iteration(t, Y_pred, F_pred, K_pred, model.X, labels = data)
@@ -259,10 +259,9 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     
 
     fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
-    fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
+    # fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
-    pickle.dump(model, open(fpath_model,"wb"))
-    return LL, F_pred
+    # pickle.dump(model, open(fpath_model,"wb"))
 
 # -----------------------------------------------------------------------------
 

@@ -76,8 +76,8 @@ def load_bball(metric_list, model, exposure_list, age = None, gaussian_indices =
     if model == "mixed":
         metric_df = df[df["age"] == age][metric_list + ["id"]]
         exposure_df = df[df["age"] == age][exposure_list + ["id"]]
-        names_df = df[["id","name"]].drop_duplicates()["name"].values
-        player_id_df = df[["id"]].drop_duplicates()
+        names_df = df[df["age"] == age][["id","name"]].drop_duplicates()["name"].values
+        player_id_df = df[df["age"] == age][["id"]].drop_duplicates()
         metric = pd.merge(metric_df, player_id_df, on ="id", how = "right")[metric_list]
         exposure = pd.merge(exposure_df, player_id_df, on ="id", how = "right").iloc[:,0:len(exposure_list)]
         missing = metric.isnull().to_numpy()
