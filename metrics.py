@@ -8,6 +8,8 @@ from   sklearn.metrics import (accuracy_score,
                                r2_score)
 from   sklearn.model_selection import KFold
 from   sklearn.neighbors import KNeighborsClassifier
+from scipy.linalg import svd 
+from typing import Tuple
 from arviz import ess, rhat, convert_to_dataset
 
 
@@ -92,3 +94,42 @@ def get_ess(parameter: np.ndarray) -> np.ndarray:
     """
 
     return ess(convert_to_dataset(parameter)).x.to_numpy()
+
+
+
+def varimax(Phi, gamma = 1.0, q = 20, tol = 1e-6):
+
+    p,k = Phi.shape
+    R = np.eye(k)
+    d=0
+    for i in range(q):
+        d_old = d
+        Lambda = np.dot(Phi, R)
+        u,s,vh = svd(np.dot(Phi.T,np.asarray(Lambda)**3 - (gamma/p) * np.dot(Lambda, np.diag(np.diag(np.dot(Lambda.T,Lambda))))))
+        R = np.dot(u,vh)
+        d = np.sum(s)
+        if d_old!=0 and d/d_old < 1 + tol: break
+    return np.dot(Phi, R)
+
+
+def rotate_factors(player_factor_tensor:np.ndarray, use_varimax:bool = True)->Tuple[np.ndarray, np.ndarray]:
+    """
+
+    Args:
+        player_factor_tensor (np.ndarray): sample x num factors x num players 
+        varimax (bool): whether to apply varimax rotation or not
+
+    Returns:
+        np.ndarray: sample x num factors x num players  rotated tensor
+    """
+
+    n_samples, n_factors, _ = player_factor_tensor.shape
+    output_tensor = np.zeros_like(player_factor_tensor)
+    rotations = [np.eye(n_factors)]
+    output_tensor[0,:,:] = player_factor_tensor[0,:,:] if not use_varimax else varimax(player_factor_tensor[0,:,:])
+    for i in range(1,n_samples):
+        U, _, V =  svd(output_tensor[0,:,:].dot(player_factor_tensor[i,:,:].T), full_matrices=False)
+        rotation = U.dot(V)
+        rotations.append(rotation)
+        output_tensor[i,:,:] = rotation.dot(player_factor_tensor[i,:,:])
+    return output_tensor, np.stack(rotations,axis = 0)

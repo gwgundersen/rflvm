@@ -123,6 +123,7 @@ class _BaseRFLVM:
 
         if self.t >= self.n_burn:
             self.X_samples[self.t - self.n_burn] = self.X
+            self.F_samples[self.t - self.n_burn] = self.phi(self.X, self.W, add_bias=True) @ self.beta.T
 
         self.t += 1
 
@@ -376,6 +377,7 @@ class _BaseRFLVM:
 
         # Gibb samples for analysis and visualization after burn-in.
         self.X_samples = np.empty((self.n_samples, self.N, self.D))
+        self.F_samples = np.empty((self.n_samples, self.N, self.J))
 
     def _init_specific_params(self):
         """Initialize likelihood-specific parameters.
