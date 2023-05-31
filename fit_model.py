@@ -182,14 +182,6 @@ def fit_log_plot(args):
             assert(model.t-1 == t)
             plot_and_print(t, rng, log, viz, ds, model, e)
 
-<<<<<<< HEAD
-    param = model.get_params()
-    ESS = pd.DataFrame(get_ess(np.expand_dims(param["X"],0)))
-    ESS["name"] = ds.data
-    ESS.to_csv("ESS.csv",index=False)
-    print(f"ESS for X", ESS)
-=======
->>>>>>> 6d3dc8c369970629d3c91415d0fc753a9290d0ed
 
     
     print("ESS for X")
