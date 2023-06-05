@@ -7,11 +7,12 @@ from   autograd.scipy.special import expit as ag_logistic
 from   autograd.scipy.stats import norm as ag_norm, poisson as ag_poisson, multivariate_normal as ag_mvn
 from   scipy.linalg import solve_triangular
 from   scipy.linalg.lapack import dpotrs
+from   pypolyagamma import PyPolyaGamma
 
 class MixedOutputRFLVM(_BaseRFLVM):
     def __init__(self, rng, data, n_burn, n_iters, latent_dim, n_clusters,
                  n_rffs, dp_prior_obs, dp_df, missing, exposure, gaussian_indices = None,
-                 poisson_indices = None, binomial_indices = None):
+                 poisson_indices = None, binomial_indices = None, disp_prior=10., bias_var=10.):
         """Initialize Mixed Output RFLVM.
         """
 
@@ -35,6 +36,10 @@ class MixedOutputRFLVM(_BaseRFLVM):
             self.Y_poisson_missing = missing[:, poisson_indices].flatten()
             self.exposure_poisson = missing[:, poisson_indices]
 
+        ### logistic params
+        
+        self.disp_prior = disp_prior
+        self.bias_var = bias_var
         super().__init__(
             rng=rng,
             data=data,
@@ -70,9 +75,13 @@ class MixedOutputRFLVM(_BaseRFLVM):
         """Return model parameters.
         """
         X = self.X_samples if self.t >= self.n_burn else self.X
+        F = self.F_samples if self.t >= self.n_burn else None
+        K = self.K_samples if self.t >= self.n_burn else None
         return dict(
             X=X,
-            W=self.W
+            W=self.W,
+            F=F,
+            K=K
         )
 
     def log_likelihood(self, **kwargs):
@@ -119,15 +128,23 @@ class MixedOutputRFLVM(_BaseRFLVM):
         self.beta = self.rng.multivariate_normal(self.b0, self.B0,
                                                     size=self.J)
         self.sigma_y = np.ones(len(self.gaussian_indices)) if self.gaussian_indices is not None else None 
+
+        ### logistic model stuff
+        self.pg             = PyPolyaGamma()
+        prior_Sigma         = np.eye(self.M+1)
+        prior_Sigma[-1, -1] = np.sqrt(self.bias_var)
+        self.inv_B          = np.linalg.inv(prior_Sigma)
+        mu_A_b              = np.zeros(self.M+1)
+        self.inv_B_b        = self.inv_B @ mu_A_b
         self.omega = np.empty(self.Y[:, self.binomial_indices].shape)
 
     def _sample_mixed_output_beta(self):
         if self.gaussian_indices is not None:
-            self._sample_beta_gaussian
+            self._sample_beta_gaussian()
         if self.poisson_indices is not None:
-            self._sample_beta_poisson
+            self._sample_beta_poisson()
         if self.binomial_indices is not None:
-            self._sample_beta_binomial
+            self._sample_beta_binomial()
 
     def _sample_beta_gaussian(self):
         """Gibbs sample `beta` and noise parameter `sigma_y`.

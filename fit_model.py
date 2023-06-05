@@ -3,6 +3,7 @@ Fit random feature latent variable model.
 ============================================================================"""
 
 import argparse
+import pandas as pd
 from   datasets import load_dataset
 from   logger import (format_number,
                       Logger)
@@ -15,9 +16,9 @@ from   models import (BernoulliRFLVM,
                       PoissonRFLVM)
 from   metrics import (knn_classify,
                        mean_squared_error,
-                       r_squared, get_ess)
+                       r_squared, get_ess, rotate_factors)
 import numpy as np
-
+import pandas as pd
 from   numpy.random import RandomState
 from   pathlib import Path
 import pickle
@@ -166,7 +167,7 @@ def fit_log_plot(args):
 
     # Fit model.
     # ----------
-    LL_list = []
+
     s_start = perf_counter()
     for t in range(args.n_iters):
         s = perf_counter()
@@ -179,14 +180,20 @@ def fit_log_plot(args):
                     f'of `X` samples after burn in.')
         if (t % args.log_every == 0) or (t == args.n_iters - 1):
             assert(model.t-1 == t)
-            LL = plot_and_print(t, rng, log, viz, ds, model, e)
-            LL_list.append(LL)
+            plot_and_print(t, rng, log, viz, ds, model, e)
 
-    params = model.get_params()
-    for param_name, param_val in params.items():
-        print(f"ESS for {param_name}", get_ess(np.expand_dims(param_val,0)))
 
-    viz.plot_LL(LL_list, model_name=f"{args.model}_{args.metric}")
+    
+    print("ESS for X")
+    ESS_X = pd.DataFrame(get_ess(np.expand_dims(rotate_factors(model.get_params()["X"])[0],0)), columns=["X1","X2"])
+    ESS_X["name"] = ds.data
+    ESS_X.to_csv("ESS_X.csv", index = False)
+
+    print("ESS for F")
+    ESS_F = pd.DataFrame(get_ess(np.expand_dims(model.get_params().get("F"),0)))
+    ESS_F["name"] = ds.data
+    ESS_F.to_csv("ESS_F.csv", index = False)
+
     
     elapsed_time = (perf_counter() - s_start) / 3600
     log.log_hline()
@@ -203,7 +210,7 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     # ---------------------------
     data = ds.data if ds.data is not None else []
     Y_pred, F_pred, K_pred = model.predict(model.X, return_latent=True)
-    LL = model.log_likelihood()
+    # LL = model.log_likelihood()
     # Plot visualizations.
     # --------------------
     viz.plot_iteration(t, Y_pred, F_pred, K_pred, model.X, labels = data)
@@ -253,10 +260,9 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     
 
     fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
-    fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
+    # fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
-    pickle.dump(model, open(fpath_model,"wb"))
-    return LL
+    # pickle.dump(model, open(fpath_model,"wb"))
 
 # -----------------------------------------------------------------------------
 
