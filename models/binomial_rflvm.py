@@ -4,6 +4,7 @@ RFLVM with Binomial observations.
 
 import autograd.numpy as np
 from   autograd.scipy.special import expit as ag_logistic
+from   autograd.scipy.special import gammaln as ag_gammaln
 from   models._base_logistic_rflvm import _BaseLogisticRFLVM
 from   scipy.special import expit as logistic
 
@@ -47,17 +48,6 @@ class BinomialRFLVM(_BaseLogisticRFLVM):
             return Y * self.trials, F, K
         return Y * self.trials
 
-    def log_likelihood(self, X, W, beta):
-        """Compute model's log likelihood.
-        """
-        phi_X = self.phi(X, W, add_bias=True)
-        P     = ag_logistic(phi_X @ beta.T)
-        k = self.Y.flatten()[~self.Y_missing]
-        n = self.trials.flatten()[~self.Y_missing]
-        p = P.flatten()[~self.Y_missing]
-        LL  = np.log(p)*(k) + (n-k)*np.log(1-p)
-
-        return LL.sum()
 
     def get_params(self):
         """Return model parameters.
@@ -89,19 +79,21 @@ class BinomialRFLVM(_BaseLogisticRFLVM):
         """
         if j is not None:
             return self.Y[:, j]
-        return self.Y
+        return self.Y.flatten()[~self.Y_missing]
 
     def _b_func(self, j=None):
         """See parent class.
         """
         if j is not None:
-            return np.ones(self.Y[:, j].shape)
-        return np.ones(self.Y.shape)
+            return np.ones(self.trials[:, j].shape)
+        return self.trials.flatten()[~self.Y_missing]
 
     def _log_c_func(self):
         """See parent class.
         """
-        return 0
+        k = self.Y.flatten()[~self.Y_missing]
+        n = self.trials.flatten()[~self.Y_missing]
+        return ag_gammaln(n+1) - ag_gammaln(k+1) - ag_gammaln(n-k+1)
 
     def _j_func(self):
         """See parent class.
