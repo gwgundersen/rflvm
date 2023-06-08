@@ -63,6 +63,25 @@ class BinomialRFLVM(_BaseLogisticRFLVM):
 # Sampling.
 # -----------------------------------------------------------------------------
 
+    def log_likelihood(self, **kwargs):
+        """Generalized, differentiable log likelihood function.
+        """
+        # This function can be called for two reasons:
+        #
+        #   1. Optimize the log likelihood w.r.t. `X`.
+        #   2. Evaluate the log likelihood w.r.t. a MH-proposed `W`.
+        #
+        X = kwargs.get('X', self.X)
+        W = kwargs.get('W', self.W)
+
+        phi_X = self.phi(X, W, add_bias=True)
+        psi   = phi_X @ self.beta.T
+        LL    = self._log_c_func() \
+                + (self._a_func() * psi).flatten()[~self.Y_missing] \
+                - (self._b_func() * np.log(1 + np.exp(psi))).flatten()[~self.Y_missing]
+
+        return LL.sum()
+
     def _sample_likelihood_params(self):
         """Sample likelihood- or observation-specific model parameters.
         """
@@ -79,14 +98,14 @@ class BinomialRFLVM(_BaseLogisticRFLVM):
         """
         if j is not None:
             return self.Y[:, j]
-        return self.Y.flatten()[~self.Y_missing]
+        return self.Y
 
     def _b_func(self, j=None):
         """See parent class.
         """
         if j is not None:
-            return np.ones(self.trials[:, j].shape)
-        return self.trials.flatten()[~self.Y_missing]
+            return self.trials[:, j]
+        return self.trials
 
     def _log_c_func(self):
         """See parent class.
