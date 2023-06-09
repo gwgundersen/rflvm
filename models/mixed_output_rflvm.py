@@ -3,8 +3,8 @@ from   autograd import jacobian
 from   scipy.optimize import minimize
 from models._base_rflvm import _BaseRFLVM
 from   scipy.special import expit as logistic
-from   autograd.scipy.special import expit as ag_logistic
-from   autograd.scipy.stats import norm as ag_norm, poisson as ag_poisson, multivariate_normal as ag_mvn, gammaln as ag_gammaln
+from   autograd.scipy.special import expit as ag_logistic, gammaln as ag_gammaln
+from   autograd.scipy.stats import norm as ag_norm, poisson as ag_poisson, multivariate_normal as ag_mvn
 from   scipy.linalg import solve_triangular
 from   scipy.linalg.lapack import dpotrs
 from   pypolyagamma import PyPolyaGamma

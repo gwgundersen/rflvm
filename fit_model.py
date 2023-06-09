@@ -187,12 +187,12 @@ def fit_log_plot(args):
     print("ESS for X")
     ESS_X = pd.DataFrame(get_ess(np.expand_dims(rotate_factors(model.get_params()["X"])[0],0)), columns=["X1","X2"])
     ESS_X["name"] = ds.data
-    ESS_X.to_csv("ESS_X.csv", index = False)
+    ESS_X.to_csv(f"ESS_X_{args.n_chain}.csv", index = False)
 
     print("ESS for F")
     ESS_F = pd.DataFrame(get_ess(np.expand_dims(model.get_params().get("F"),0)))
     ESS_F["name"] = ds.data
-    ESS_F.to_csv("ESS_F.csv", index = False)
+    ESS_F.to_csv(f"ESS_F_{args.n_chain}.csv", index = False)
 
     
     elapsed_time = (perf_counter() - s_start) / 3600
@@ -259,7 +259,7 @@ def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
     params = model.get_params()
     
 
-    fpath = f'{args.directory}/{args.model}_{args.metric}_rflvm.pickle'
+    fpath = f'{args.directory}/{args.model}_{args.metric}_{args.n_chain}_rflvm.pickle'
     # fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
     pickle.dump(params, open(fpath, 'wb'))
     # pickle.dump(model, open(fpath_model,"wb"))
@@ -343,6 +343,9 @@ if __name__ == '__main__':
     p.add_argument('--n_clusters',
                    help='Number of initial clusters for `W`.',
                    required=False,
+                   type=int,
+                   default=1)
+    p.add_argument('--n_chain',
                    type=int,
                    default=1)
 
