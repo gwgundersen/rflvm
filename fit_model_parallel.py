@@ -13,7 +13,7 @@ from   models import (BernoulliRFLVM,
                       PoissonRFLVM)
 from   metrics import (get_neighbors, get_summary, rotate_factors, get_posterior_mean)
 import numpy as np
-import pandas as pd
+import pickle
 from   numpy.random import RandomState
 from   pathlib import Path
 from   visualizer import Visualizer
@@ -234,29 +234,10 @@ if __name__ == '__main__':
     log.log_args(args)
 
     results = parallel_fit(args, chains)
-
-
-    X_samples = [param["X"] for param in results]
-    F_samples = [param["F"] for param in results]
-    ### get diagnostic summaries
-    X_samples = np.stack(X_samples,axis=0)
-    F_samples = np.stack(F_samples, axis=0)
-    rotated_X_samples = rotate_factors(X_samples.reshape(-1, X_samples.shape[2], X_samples.shape[3]))[0].reshape(X_samples.shape)
-    pd.DataFrame(get_summary(rotated_X_samples)).to_csv("summary_X.csv", index = False)
-    pd.DataFrame(get_summary(F_samples)).to_csv("summary_F.csv", index = False)
-    posterior_X_mean = get_posterior_mean(rotated_X_samples)
-    viz = Visualizer(args.directory, ds)
-    viz.plot_X(posterior_X_mean, labels = ds.labels, frac=.07)
-    
-
-    ### nearest neighbors
-    print(get_neighbors(ds.data, "Stephen Curry", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
-    print(get_neighbors(ds.data, "Tim Duncan", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
-    print(get_neighbors(ds.data, "Kevin Durant", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
-    print(get_neighbors(ds.data, "Klay Thompson", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
-
+    fpath = f'{args.directory}/{args.model}_{args.metric}_{args.n_chain}_rflvm.pickle'
+    chained_params = {sample:np.stack([param[sample] for param in results], axis = 0) for sample in results[0].keys()}
+    with open(fpath, "wb") as f:
+        pickle.dump(chained_params, f)
 
 
     
-
-
