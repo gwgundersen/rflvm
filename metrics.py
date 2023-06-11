@@ -9,8 +9,9 @@ from   sklearn.metrics import (accuracy_score,
 from   sklearn.model_selection import KFold
 from   sklearn.neighbors import KNeighborsClassifier
 from scipy.linalg import svd 
+from scipy.spatial import KDTree
 from typing import Tuple
-from arviz import ess, rhat, convert_to_dataset
+from arviz import summary, convert_to_dataset, convert_to_inference_data
 
 
 # -----------------------------------------------------------------------------
@@ -72,28 +73,28 @@ def affine_align(X, X_true=None, return_residuals=False):
     return X @ W
 
 
-def get_rhat(parameter: np.ndarray) -> np.ndarray:
+def get_summary(parameter: np.ndarray) -> np.ndarray:
     """_summary_
 
     Args:
         parameter (np.ndarray): array with (chains, num samples, parameter size ** )
         chains >= 2
     Returns:
-        float: returns the rhat ndarray
+        float: returns the summary ndarray
     """
-    return rhat(convert_to_dataset(parameter)).x.to_numpy()
+    return summary(convert_to_dataset(parameter)).to_numpy()
 
-def get_ess(parameter: np.ndarray) -> np.ndarray:
+def get_posterior_mean(parameter: np.ndarray) -> np.ndarray:
     """_summary_
 
     Args:
-        parameter (np.ndarray): 
+        parameter (np.ndarray): array with (chains, num samples, parameter size ** )
+        chains >= 2
 
     Returns:
-        float: return ndarray of effective sample size
+        np.ndarray: posterior mean
     """
-
-    return ess(convert_to_dataset(parameter)).x.to_numpy()
+    return convert_to_inference_data(parameter).posterior.mean(dim=["chain", "draw"]).x.to_numpy()
 
 
 
@@ -133,3 +134,12 @@ def rotate_factors(player_factor_tensor:np.ndarray, use_varimax:bool = True)->Tu
         rotations.append(rotation)
         output_tensor[i,:,:] = rotation.dot(player_factor_tensor[i,:,:])
     return output_tensor, np.stack(rotations,axis = 0)
+
+
+def get_neighbors(data_frame, player, num_k, latent_space, query = ""):
+    name_map = data_frame.query(query)[["id","name"]].drop_duplicates().reset_index()[["id","name"]]
+    player_index = name_map.index[name_map["name"] == player][0]
+    point = latent_space[player_index,:]
+    _, indices = KDTree(latent_space).query(point, k = num_k)
+    nearest_neighbors_names = name_map.loc[indices]["name"]
+    return nearest_neighbors_names

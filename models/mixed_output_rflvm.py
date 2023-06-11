@@ -141,6 +141,7 @@ class MixedOutputRFLVM(_BaseRFLVM):
         if self.poisson_indices is not None:
             self._sample_beta_poisson()
         if self.binomial_indices is not None:
+            self._sample_omega()
             self._sample_beta_binomial()
 
     def _sample_beta_gaussian(self):

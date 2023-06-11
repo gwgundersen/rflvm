@@ -1,9 +1,6 @@
-"""============================================================================
-Fit random feature latent variable model.
-============================================================================"""
-
 import argparse
 import pandas as pd
+import multiprocessing
 from   datasets import load_dataset
 from   logger import (format_number,
                       Logger)
@@ -14,48 +11,14 @@ from   models import (BernoulliRFLVM,
                       MixedOutputRFLVM,
                       NegativeBinomialRFLVM,
                       PoissonRFLVM)
-from   metrics import (knn_classify,
-                       mean_squared_error,
-                       r_squared, get_ess, rotate_factors)
+from   metrics import (get_neighbors, get_summary, rotate_factors, get_posterior_mean)
 import numpy as np
 import pandas as pd
 from   numpy.random import RandomState
 from   pathlib import Path
-import pickle
-from   time import perf_counter
 from   visualizer import Visualizer
 
-
-# -----------------------------------------------------------------------------
-
-def fit_log_plot(args):
-    """Fit model, plot visualizations, log metrics.
-    """
-    # Configure logging, dataset, and visualizer.
-    # -------------------------------------------
-    p = Path(args.directory)
-    if not p.exists():
-        p.mkdir()
-    log = Logger(directory=args.directory)
-    log.log(f'Initializing RNG with seed {args.seed}.')
-    rng = RandomState(args.seed)
-    ds  = load_dataset(rng, args.dataset, args.emissions, metric_list = args.metric.split(",")[0] if len(args.metric.split(",")) <= 1 else args.metric.split(","), model = args.model, 
-                       exposure_list = args.exposure.split(",")[0] if len(args.exposure.split(",")) <= 1 else args.exposure.split(","), age = args.age, gaussian_indices = args.gaussian_indices,
-                       poisson_indices = args.poisson_indices, binomial_indices = args.binomial_indices)
-    viz = Visualizer(args.directory, ds)
-
-    # Set values on `args` so that they are logged.
-    args.n_burn       = int(args.n_iters / 2)  # Recommended in Gelman's BDA.
-    args.dp_prior_obs = ds.latent_dim
-    args.dp_df        = ds.latent_dim + 1
-    args.marginalize  = bool(args.marginalize)
-    args.log_every    = 10
-
-    log.log_hline()
-    log.log_args(args)
-
-    # Initialize model.
-    # -----------------
+def fit(args):
     if args.model == 'bernoulli':
         model = BernoulliRFLVM(
             rng=rng,
@@ -143,7 +106,7 @@ def fit_log_plot(args):
     elif args.model == 'negbinom':
         if args.dataset == 's-curve' and args.emissions == 'gaussian':
             raise NotImplementedError('Sampling `R` requires `Y` to be count '
-                                      'data but emissions are Gaussian.')
+                                        'data but emissions are Gaussian.')
         model = NegativeBinomialRFLVM(
             rng=rng,
             data=ds.Y,
@@ -156,115 +119,16 @@ def fit_log_plot(args):
             dp_df=args.dp_df
         )
 
-    if args.model != args.emissions and args.dataset == 's-curve':
-        model_name = model.__class__.__name__
-        log.log_hline()
-        log.log(f'WARNING: Model is {model_name}, but emissions '
-                f'are {args.emissions}. Was this intended?')
-
-    # Visualize the initial value of `X`.
-    viz.plot_X_init(model.X)
-
-    # Fit model.
-    # ----------
-
-    s_start = perf_counter()
-    for t in range(args.n_iters):
-        s = perf_counter()
-        model.step()
-        e = perf_counter() - s
-
-        if t == model.n_burn:
-            log.log_hline()
-            log.log(f'Burn in complete on iter = {t}. Now plotting using mean '
-                    f'of `X` samples after burn in.')
-        if (t % args.log_every == 0) or (t == args.n_iters - 1):
-            assert(model.t-1 == t)
-            plot_and_print(t, rng, log, viz, ds, model, e)
-
-
     
-    print("ESS for X")
-    ESS_X = pd.DataFrame(get_ess(np.expand_dims(rotate_factors(model.get_params()["X"])[0],0)), columns=["X1","X2"])
-    ESS_X["name"] = ds.labels
-    ESS_X.to_csv(f"ESS_X_{args.n_chain}.csv", index = False)
+    model.fit()
+    return model.get_params()
 
-    print("ESS for F")
-    ESS_F = pd.DataFrame(get_ess(np.expand_dims(model.get_params().get("F"),0)))
-    ESS_F["name"] = ds.labels
-    ESS_F.to_csv(f"ESS_F_{args.n_chain}.csv", index = False)
-
-    
-    elapsed_time = (perf_counter() - s_start) / 3600
-    log.log_hline()
-    log.log(f'Finished job in {format_number(elapsed_time)} (hrs).')
-    log.log_hline()
-
-
-# -----------------------------------------------------------------------------
-
-def plot_and_print(t, rng, log, viz, ds, model, elapsed_time):
-    """Utility function for plotting images and printing logs.
-    """
-    # Generate model predictions.
-    # ---------------------------
-    data = ds.labels if ds.labels is not None else []
-    Y_pred, F_pred, K_pred = model.predict(model.X, return_latent=True)
-    # LL = model.log_likelihood()
-    # Plot visualizations.
-    # --------------------
-    viz.plot_iteration(t, Y_pred, F_pred, K_pred, model.X, labels = data)
-
-    log.log_hline()
-    log.log(t)
-    
-    # Log metrics.
-    # ------------
-    mse_Y = mean_squared_error(Y_pred, ds.Y)
-    log.log_pair('MSE Y', mse_Y)
-
-    if ds.has_true_F:
-        mse_F = mean_squared_error(F_pred, ds.F)
-        log.log_pair('MSE F', mse_F)
-
-    if ds.has_true_K:
-        mse_K = mean_squared_error(K_pred, ds.K)
-        log.log_pair('MSE K', mse_K)
-
-    if ds.has_true_X:
-        r2_X = r_squared(model.X, ds.X)
-        log.log_pair('R2 X', r2_X)
-
-    if ds.is_categorical:
-        knn_acc = knn_classify(model.X, ds.labels, rng)
-        log.log_pair('KNN acc', knn_acc)
-
-    # Log parameters.
-    # ---------------
-    log.log_pair('DPMM LL', model.calc_dpgmm_ll())
-    log.log_pair('K', model.Z_count.tolist())
-    log.log_pair('alpha', model.alpha)
-    n_mh_iters = (model.t + 1) * model.M
-    log.log_pair('W MH acc', model.mh_accept / n_mh_iters)
-
-    if hasattr(model, 'R'):
-        log.log_pair('R median', np.median(model.R))
-
-    # Record time.
-    # ------------
-    log.log_pair('time', elapsed_time)
-
-    # Flush and save state.
-    # ---------------------
-    params = model.get_params()
-    
-
-    fpath = f'{args.directory}/{args.model}_{args.metric}_{args.n_chain}_rflvm.pickle'
-    # fpath_model = f'{args.directory}/{args.model}_{args.metric}_model_rflvm.pickle'
-    pickle.dump(params, open(fpath, 'wb'))
-    # pickle.dump(model, open(fpath_model,"wb"))
-
-# -----------------------------------------------------------------------------
+def parallel_fit(args, num_chains):
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count()-2)
+    results = pool.map(fit, [args] * num_chains)
+    pool.close()
+    pool.join()
+    return results
 
 if __name__ == '__main__':
     EMISSIONS = ['bernoulli', 'gaussian', 'multinomial', 'negbinom', 'poisson', 'binomial', "mixed"]
@@ -279,11 +143,6 @@ if __name__ == '__main__':
                    required=False,
                    default='gaussian',
                    choices=EMISSIONS)
-    p.add_argument('--seed',
-                   help='Random seed.',
-                   required=False,
-                   default=0,
-                   type=int)
     p.add_argument('--dataset',
                    help='Experimental dataset.',
                    type=str,
@@ -351,6 +210,53 @@ if __name__ == '__main__':
 
     # Parse and validate script arguments.
     # ------------------------------------
-    args = p.parse_args()
 
-    fit_log_plot(args)
+    args = p.parse_args()
+    p = Path(args.directory)
+    if not p.exists():
+        p.mkdir()
+    log = Logger(directory=args.directory)
+    chains = args.n_chain
+
+    rng = RandomState()
+    ds  = load_dataset(rng, args.dataset, args.emissions, metric_list = args.metric.split(",")[0] if len(args.metric.split(",")) <= 1 else args.metric.split(","), model = args.model, 
+                        exposure_list = args.exposure.split(",")[0] if len(args.exposure.split(",")) <= 1 else args.exposure.split(","), age = args.age, gaussian_indices = args.gaussian_indices,
+                        poisson_indices = args.poisson_indices, binomial_indices = args.binomial_indices)
+
+    # Set values on `args` so that they are logged.
+    args.n_burn       = int(args.n_iters / 2)  # Recommended in Gelman's BDA.
+    args.dp_prior_obs = ds.latent_dim
+    args.dp_df        = ds.latent_dim + 1
+    args.marginalize  = bool(args.marginalize)
+    args.log_every    = 10
+
+    log.log_hline()
+    log.log_args(args)
+
+    results = parallel_fit(args, chains)
+
+
+    X_samples = [param["X"] for param in results]
+    F_samples = [param["F"] for param in results]
+    ### get diagnostic summaries
+    X_samples = np.stack(X_samples,axis=0)
+    F_samples = np.stack(F_samples, axis=0)
+    rotated_X_samples = rotate_factors(X_samples.reshape(-1, X_samples.shape[2], X_samples.shape[3]))[0].reshape(X_samples.shape)
+    pd.DataFrame(get_summary(rotated_X_samples)).to_csv("summary_X.csv", index = False)
+    pd.DataFrame(get_summary(F_samples)).to_csv("summary_F.csv", index = False)
+    posterior_X_mean = get_posterior_mean(rotated_X_samples)
+    viz = Visualizer(args.directory, ds)
+    viz.plot_X(posterior_X_mean, labels = ds.labels, frac=.07)
+    
+
+    ### nearest neighbors
+    print(get_neighbors(ds.data, "Stephen Curry", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
+    print(get_neighbors(ds.data, "Tim Duncan", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
+    print(get_neighbors(ds.data, "Kevin Durant", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
+    print(get_neighbors(ds.data, "Klay Thompson", 6, posterior_X_mean, query = f"age == {args.age} and minutes > 0"))
+
+
+
+    
+
+

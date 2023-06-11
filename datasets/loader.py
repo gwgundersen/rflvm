@@ -89,7 +89,7 @@ def load_bball(metric_list, model, exposure_list, age = None, gaussian_indices =
             pass
         return Dataset("bball", False, Y = metric.fillna(metric.mean()).to_numpy(),
                        missing = missing, exposure = exposure.to_numpy(), gaussian_indices = gaussian_indices,
-                       poisson_indices = poisson_indices, binomial_indices = binomial_indices, data = names_df )
+                       poisson_indices = poisson_indices, binomial_indices = binomial_indices, labels = names_df, data = df )
         
     else:
         df = df.sort_values(by=["id","year"])
@@ -100,18 +100,18 @@ def load_bball(metric_list, model, exposure_list, age = None, gaussian_indices =
         if model == "poisson":
             offset = np.log(exposure_df.pivot(columns="age", values=exposure,index="id").fillna(1).to_numpy())
             return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), exposure=offset,
-                           data = player_id_df)
+                           labels = player_id_df, data =df)
         elif model == "binomial":
             trials = exposure_df.pivot(columns="age", index="id", values=exposure).fillna(0).to_numpy()
             return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), 
-                           exposure=trials, data = player_id_df)
+                           exposure=trials, labels = player_id_df, data= df)
         elif model == "gaussian":
             variance_scale = np.sqrt(exposure_df.pivot(columns="age", index="id", values=exposure).fillna(1).to_numpy())
             return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), 
-                           exposure=variance_scale, data = player_id_df)
+                           exposure=variance_scale, labels = player_id_df, data = df)
         else:
             return Dataset("bball", False, Y = metric_df.fillna(metric_df.mean()).to_numpy(), missing = metric_df.isnull().to_numpy(), 
-                           exposure=0, data = player_id_df)
+                           exposure=0, labels = player_id_df, data = df)
     
     
 

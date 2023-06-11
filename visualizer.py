@@ -3,10 +3,12 @@ Utility functions for common visualizations.
 ============================================================================"""
 
 import numpy as np
+import random
 import matplotlib.pyplot as plt
 from   metrics import affine_align
 from   scipy.special import expit as logistic
 from scipy.cluster.hierarchy import linkage, leaves_list
+from adjustText import adjust_text
 # -----------------------------------------------------------------------------
 # Base visualizer for data with 2D latent variables.
 # -----------------------------------------------------------------------------
@@ -16,10 +18,8 @@ class Visualizer:
     def __init__(self, directory, dataset):
         self.directory  = directory
         self.dataset    = dataset
-        if dataset.has_labels:
-            self.x_colors = dataset.labels
-        else:
-            self.x_colors = 'r'
+        
+        self.x_colors = 'r'
         self.model_name = 'RFLVM'
         if dataset.has_true_X:
             self.plot_X(X=dataset.X, suffix='true')
@@ -53,12 +53,18 @@ class Visualizer:
         self._save(fname)
 
 
-    def plot_X(self, X, suffix='', t=-1):
+    def plot_X(self, X, suffix='', t=-1, labels=[], frac = 1):
         if suffix:
             suffix = f'_{suffix}'
         fname = f'{t}_X{suffix}.png'
-        X_aligned = affine_align(X, self.dataset.X)
-        plt.scatter(X_aligned[:, 0], X_aligned[:, 1], c=self.x_colors)
+        X_aligned = X
+        n_samples = int(frac * X_aligned.shape[0])
+        random_indices = random.sample(range(X.shape[0]), n_samples)
+        plt.scatter(X_aligned[random_indices, 0], X_aligned[random_indices, 1], c=self.x_colors)
+        texts = [plt.text(X_aligned[i,0], X_aligned[i,1], labels[i], ha='center', va='center') for i in random_indices]
+        # Adjust the text positions to avoid overlap
+        adjust_text(texts)
+
         self._save(fname)
 
         if self.dataset.has_true_X and suffix not in ['true', 'init']:
