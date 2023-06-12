@@ -11,12 +11,11 @@ from   models import (BernoulliRFLVM,
                       MixedOutputRFLVM,
                       NegativeBinomialRFLVM,
                       PoissonRFLVM)
-from   metrics import (get_neighbors, get_summary, rotate_factors, get_posterior_mean)
 import numpy as np
 import pickle
 from   numpy.random import RandomState
 from   pathlib import Path
-from   visualizer import Visualizer
+from tqdm import tqdm
 
 def fit(args):
     if args.model == 'bernoulli':
@@ -121,11 +120,12 @@ def fit(args):
 
     
     model.fit()
+    print("Completed Fit, returning model params")
     return model.get_params()
 
 def parallel_fit(args, num_chains):
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count()-2)
-    results = pool.map(fit, [args] * num_chains)
+    pool = multiprocessing.Pool()
+    results = list(tqdm(pool.imap(fit, [args] * num_chains), total=num_chains))
     pool.close()
     pool.join()
     return results

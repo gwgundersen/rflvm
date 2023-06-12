@@ -17,6 +17,7 @@ from   scipy.special import logsumexp
 from   scipy.stats import (invwishart,
                            multivariate_normal as mvn)
 from   sklearn.decomposition import PCA
+from tqdm import tqdm
 
 
 # -----------------------------------------------------------------------------
@@ -92,7 +93,7 @@ class _BaseRFLVM:
     def fit(self):
         """Fit model to infer latent variable `X` given `Y`.
         """
-        for t in range(self.n_iters):
+        for t in tqdm(range(self.n_iters)):
             self.step()
 
     def predict(self, X, return_params=False):
