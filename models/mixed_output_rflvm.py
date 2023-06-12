@@ -3,7 +3,7 @@ from   autograd import jacobian
 from   scipy.optimize import minimize
 from models._base_rflvm import _BaseRFLVM
 from   scipy.special import expit as logistic
-from   autograd.scipy.special import expit as ag_logistic
+from   autograd.scipy.special import expit as ag_logistic, gammaln as ag_gammaln
 from   autograd.scipy.stats import norm as ag_norm, poisson as ag_poisson, multivariate_normal as ag_mvn
 from   scipy.linalg import solve_triangular
 from   scipy.linalg.lapack import dpotrs
@@ -31,10 +31,10 @@ class MixedOutputRFLVM(_BaseRFLVM):
             self.exposure_gaussian = exposure[:, gaussian_indices]
         if binomial_indices is not None:
             self.Y_binomial_missing = missing[:, binomial_indices].flatten()
-            self.exposure_binomial = missing[:, binomial_indices]
+            self.exposure_binomial = exposure[:, binomial_indices]
         if poisson_indices is not None:
             self.Y_poisson_missing = missing[:, poisson_indices].flatten()
-            self.exposure_poisson = missing[:, poisson_indices]
+            self.exposure_poisson = exposure[:, poisson_indices]
 
         ### logistic params
         
@@ -107,13 +107,10 @@ class MixedOutputRFLVM(_BaseRFLVM):
             LL += ag_poisson.logpmf(self.Y[:, self.poisson_indices].flatten()[~self.Y_poisson_missing], theta.flatten()[~self.Y_poisson_missing]).sum()
         
         if self.binomial_indices is not None:
-            theta = ag_logistic(F[:, self.binomial_indices])
-            k = self.Y[:, self.binomial_indices].flatten()[~self.Y_binomial_missing]
-            n = self.exposure_binomial.flatten()[~self.Y_binomial_missing]
-            p = theta.flatten()[~self.Y_binomial_missing]
-            LL  += (np.log(p)*(k) + (n-k)*np.log(1-p)).sum()
+            LL  += (self._log_c_func() + self._a_func().flatten()[~self.Y_binomial_missing] + F[:, self.binomial_indices].flatten()[~self.Y_binomial_missing] - self._b_func().flatten()[~self.Y_binomial_missing] * np.log(1 + np.exp(F[:, self.binomial_indices].flatten()[~self.Y_binomial_missing]))).sum()
         
         return LL
+    
     
     def _init_specific_params(self):
         """Initialize likelihood-specific parameters.
@@ -144,6 +141,7 @@ class MixedOutputRFLVM(_BaseRFLVM):
         if self.poisson_indices is not None:
             self._sample_beta_poisson()
         if self.binomial_indices is not None:
+            self._sample_omega()
             self._sample_beta_binomial()
 
     def _sample_beta_gaussian(self):
@@ -217,13 +215,15 @@ class MixedOutputRFLVM(_BaseRFLVM):
         """See parent class.
         """
         if j is not None:
-            return np.ones(self.Y[:, self.binomial_indices][:, j].shape)
-        return np.ones(self.Y[:, self.binomial_indices].shape)
+            return self.exposure_binomial[:, j]
+        return self.exposure_binomial
 
     def _log_c_func(self):
         """See parent class.
         """
-        return 0
+        k = self.Y[:, self.binomial_indices].flatten()[~self.Y_binomial_missing]
+        n = self.exposure_binomial.flatten()[~self.Y_binomial_missing]
+        return ag_gammaln(n+1) - ag_gammaln(k+1) - ag_gammaln(n-k+1)
 
     def _j_func(self):
         """See parent class.
