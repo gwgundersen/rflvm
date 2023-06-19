@@ -77,11 +77,13 @@ class MixedOutputRFLVM(_BaseRFLVM):
         X = self.X_samples if self.t >= self.n_burn else self.X
         F = self.F_samples if self.t >= self.n_burn else None
         K = self.K_samples if self.t >= self.n_burn else None
+        Beta = self.beta_samples if self.t >= self.n_burn else None
         return dict(
             X=X,
             W=self.W,
             F=F,
-            K=K
+            K=K,
+            beta=Beta
         )
 
     def log_likelihood(self, **kwargs):

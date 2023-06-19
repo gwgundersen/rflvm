@@ -126,7 +126,7 @@ class _BaseRFLVM:
             self.X_samples[self.t - self.n_burn] = self.X
             self.F_samples[self.t - self.n_burn] = self.phi(self.X, self.W, add_bias=True) @ self.beta.T
             self.K_samples[self.t - self.n_burn] = self.phi(self.X, self.W, add_bias=True) @ self.phi(self.X, self.W, add_bias=True).T
-
+            self.beta_samples[self.t - self.n_burn] = self.beta
         self.t += 1
 
     def get_params(self):
@@ -381,6 +381,7 @@ class _BaseRFLVM:
         self.X_samples = np.empty((self.n_samples, self.N, self.D))
         self.F_samples = np.empty((self.n_samples, self.N, self.J))
         self.K_samples = np.empty((self.n_samples, self.N, self.N))
+        self.beta_samples = np.empty((self.n_samples, self.M + 1, self.J))
 
     def _init_specific_params(self):
         """Initialize likelihood-specific parameters.
