@@ -126,6 +126,9 @@ class MixedOutputRFLVM(_BaseRFLVM):
         self.B0   = np.eye(self.M + 1)
         self.beta = self.rng.multivariate_normal(self.b0, self.B0,
                                                     size=self.J)
+        self.sigma_beta = np.ones(self.J) ### variance for each of the beta's 
+        self.gamma_a_beta = np.ones(self.J) ### inverse gamma priors
+        self.gamma_b_beta = np.ones(self.J) ### inverse gamma priors
         self.sigma_y = np.ones(len(self.gaussian_indices)) if self.gaussian_indices is not None else None 
 
         ### logistic model stuff
@@ -168,6 +171,7 @@ class MixedOutputRFLVM(_BaseRFLVM):
             (mu_j.T @ np.linalg.solve(cov_j, mu_j))
         )
         self.sigma_y = 1. / self.rng.gamma(a_post, 1./b_post)
+
     
     def _sample_beta_poisson(self):
         """Compute the maximum a posteriori estimation of `beta`.
@@ -180,7 +184,9 @@ class MixedOutputRFLVM(_BaseRFLVM):
             theta = np.exp(F + self.exposure_poisson)
             LL = ag_poisson.logpmf(self.Y[:, self.poisson_indices].flatten()[~self.Y_poisson_missing],
                                     theta.flatten()[~self.Y_poisson_missing]).sum()
-            LP   = ag_mvn.logpdf(beta, self.b0, self.B0).sum()
+            LP = 0
+            for i in range(J_poiss):
+                LP   += ag_mvn.logpdf(beta[i], self.b0, self.sigma_beta[self.poisson_indices][i]*self.B0).sum()  ### add prior to beta
             return -(LL + LP)
 
         resp = minimize(_neg_log_posterior,
@@ -192,6 +198,16 @@ class MixedOutputRFLVM(_BaseRFLVM):
                         ))
         beta_map = resp.x.reshape(J_poiss, self.M+1)
         self.beta[self.poisson_indices,:] = beta_map
+
+        #### now we update the variances 
+
+        a_post = self.gamma_a_beta + .5 * (self.M + 1) 
+        b_post = self.gamma_b_beta  + (beta_map ** 2).sum(axis = 1) * .5
+
+        self.sigma_beta[self.poisson_indices] = 1/self.rng.gamma(a_post, 1/b_post)
+
+
+
     
     def _sample_beta_binomial(self):
         """Sample `β|ω ~ N(m, V)`. See (Polson 2013).
@@ -201,11 +217,17 @@ class MixedOutputRFLVM(_BaseRFLVM):
         for i,j in enumerate(self.binomial_indices):
             # This really computes: phi_X.T @ np.diag(omega[:, j]) @ phi_X
             J = (phi_X * self.omega[:, i][:, None]).T @ phi_X + \
-                self.inv_B
-            h = phi_X.T @ self._kappa_func(i) + self.inv_B_b
+                self.inv_B / self.sigma_beta[j]
+            h = phi_X.T @ self._kappa_func(i) + self.inv_B_b / self.sigma_beta[j]
             joint_sample = self._sample_gaussian(J=J, h=h)
             self.beta[j] = joint_sample
-    
+
+        ### update the variances 
+        a_post = self.gamma_a_beta + .5 * (self.M + 1) 
+        b_post = self.gamma_b_beta  + (self.beta[self.binomial_indices,:] ** 2).sum(axis = 1) * .5
+
+        self.sigma_beta[self.binomial_indices_indices] = 1/self.rng.gamma(a_post, 1/b_post)
+
     def _a_func(self, j=None):
         """See parent class.
         """
