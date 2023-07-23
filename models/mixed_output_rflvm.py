@@ -129,7 +129,8 @@ class MixedOutputRFLVM(_BaseRFLVM):
         self.sigma_beta = np.ones(self.J) ### variance for each of the beta's 
         self.gamma_a_beta = np.ones(self.J) ### inverse gamma priors
         self.gamma_b_beta = np.ones(self.J) ### inverse gamma priors
-        self.sigma_y = np.ones(len(self.gaussian_indices)) if self.gaussian_indices is not None else None 
+        
+    
 
         ### logistic model stuff
         self.pg             = PyPolyaGamma()
@@ -141,35 +142,34 @@ class MixedOutputRFLVM(_BaseRFLVM):
         self.omega = np.empty(self.Y[:, self.binomial_indices].shape)
 
     def _sample_mixed_output_beta(self):
-        if self.gaussian_indices is not None:
+        if self.gaussian_indices:
             self._sample_beta_gaussian()
-        if self.poisson_indices is not None:
+        if self.poisson_indices:
             self._sample_beta_poisson()
-        if self.binomial_indices is not None:
+        if self.binomial_indices:
             self._sample_omega()
             self._sample_beta_binomial()
 
     def _sample_beta_gaussian(self):
-        """Gibbs sample `beta` and noise parameter `sigma_y`.
+        """Gibbs sample `beta` and noise parameter `sigma_beta`.
         """
-        J_gauss = len(self.gaussian_indices)
         I = np.eye(self.M + 1)
         phi_X = self.phi(self.X, self.W, add_bias=True)
         a_post = self.gamma_a0 + .5 * self.N
-        b_post_posterior = np.zeros((J_gauss,))
-        for i, index in enumerate(self.gaussian_indices):
-            lambda_inv = np.diag(self.exposure_gaussian[:,i])
-            phi_x_lambda = phi_X.T.dot(lambda_inv)
-            phi_x_lambda_y = phi_x_lambda.dot(self.Y[:,index])
-            cov_j = phi_x_lambda.dot(phi_X) + I
-            mu_j = np.linalg.solve(cov_j, phi_x_lambda_y)
-            self.beta[index, :] = self.rng.multivariate_normal(mu_j, np.linalg.inv(cov_j))
-            b_post_posterior[i] = self.Y[:,index].T.dot(lambda_inv - phi_x_lambda.T.dot(np.linalg.solve(cov_j, phi_x_lambda))).dot(self.Y[:,index])
+        R = np.diag(np.power(self.exposure_gaussian[:,0],2)) ### same 
+        Q = -phi_X.T.dot(R)
+        T = Q.dot(Q.T) + I
+        B_n = self.Y[:,self.gaussian_indices].T.dot(R - (Q.T).dot(np.linalg.solve(T, Q))).dot(self.Y[:,self.gaussian_indices]) 
+        phi_x_lambda_y = -Q.dot(self.Y[:,self.gaussian_indices])
+
+        for index in self.gaussian_indices:
+            self.beta[index] = self._sample_gaussian(J = T / self.sigma_beta[index], h = phi_x_lambda_y.T[index] / self.sigma_beta[index])
+
         # sample from inverse gamma
         
         
 
-        b_post = self.gamma_b0 + .5 * b_post_posterior
+        b_post = self.gamma_b0 + .5 * np.diagonal(B_n)
 
         self.sigma_beta[self.gaussian_indices] = 1. / self.rng.gamma(a_post, 1./b_post)
 
@@ -203,7 +203,7 @@ class MixedOutputRFLVM(_BaseRFLVM):
         #### now we update the variances 
 
         a_post = self.gamma_a_beta[self.poisson_indices] + .5 * (self.M + 1) 
-        b_post = self.gamma_b_beta[self.poisson_indices]  + (beta_map.T.dot(beta_map)) * .5
+        b_post = self.gamma_b_beta[self.poisson_indices]  + (np.diagonal(beta_map.dot(beta_map.T))) * .5
 
         self.sigma_beta[self.poisson_indices] = 1/self.rng.gamma(a_post, 1/b_post)
 
@@ -218,14 +218,14 @@ class MixedOutputRFLVM(_BaseRFLVM):
         for i,j in enumerate(self.binomial_indices):
             # This really computes: phi_X.T @ np.diag(omega[:, j]) @ phi_X
             J = (phi_X * self.omega[:, i][:, None]).T @ phi_X + \
-                (self.inv_B / self.sigma_beta[j])
-            h = phi_X.T @ self._kappa_func(i) + (self.inv_B_b / self.sigma_beta[j])
+                (self.inv_B * self.sigma_beta[j])
+            h = phi_X.T @ self._kappa_func(i) + (self.inv_B_b * self.sigma_beta[j])
             joint_sample = self._sample_gaussian(J=J, h=h)
             self.beta[j] = joint_sample
 
         ### update the variances 
         a_post = self.gamma_a_beta[self.binomial_indices] + .5 * (self.M + 1) 
-        b_post = self.gamma_b_beta[self.binomial_indices]  + self.beta[self.binomial_indices,:].T.dot(self.beta[self.binomial_indices,:]) * .5
+        b_post = self.gamma_b_beta[self.binomial_indices]  + np.diagonal(self.beta[self.binomial_indices,:].dot(self.beta[self.binomial_indices,:].T)) * .5
 
         self.sigma_beta[self.binomial_indices] = 1/self.rng.gamma(a_post, 1/b_post)
 

@@ -126,7 +126,7 @@ class _BaseRFLVM:
             self.X_samples[self.t - self.n_burn] = self.X
             self.F_samples[self.t - self.n_burn] = self.phi(self.X, self.W, add_bias=True) @ self.beta.T
             self.K_samples[self.t - self.n_burn] = self.phi(self.X, self.W, add_bias=True) @ self.phi(self.X, self.W, add_bias=True).T
-            self.beta_samples[self.t - self.n_burn] = self.beta
+            self.beta_samples[self.t - self.n_burn] = self.beta.T
         self.t += 1
 
     def get_params(self):
